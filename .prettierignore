@@ -1,0 +1,11 @@
+node_modules
+dist
+build
+.next
+coverage
+*.db
+*.sqlite
+pnpm-lock.yaml
+*.log
+.env
+.env.local
