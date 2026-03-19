@@ -1,85 +1,31 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { getUserName, getViewerId, setUserName } from "@/lib/user-store";
-import { toast } from "sonner";
-import { User, ClipboardList, Settings, Check, Pencil, LogIn, LogOut, Shield } from "lucide-react";
+import { User, ClipboardList, Settings, LogIn, LogOut, Shield } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { api } from "@/lib/api";
-
-interface CurrentUser {
-  id: number;
-  userId: string;
-  name: string;
-  role: "USER" | "ADMIN";
-}
+import { useCurrentUser, useLogout } from "@/lib/react-query/auth";
 
 export function Header() {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [isEditing, setIsEditing] = useState(false);
-  const [inputValue, setInputValue] = useState("");
-  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-
-  useEffect(() => {
-    getViewerId();
-    const savedName = getUserName();
-    setName(savedName);
-    setInputValue(savedName);
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      const response = await api.get("/auth/me");
-      setCurrentUser(response.data);
-    } catch {
-      setCurrentUser(null);
-    } finally {
-      setIsCheckingAuth(false);
-    }
-  };
+  const currentUserQuery = useCurrentUser();
+  const logoutMutation = useLogout();
+  const currentUser = currentUserQuery.data;
+  const isCheckingAuth = currentUserQuery.isLoading;
 
   const handleLogout = async () => {
     try {
-      await api.post("/auth/logout");
-      setCurrentUser(null);
-      toast.success("로그아웃되었습니다.");
-      router.push("/");
+      await logoutMutation.mutateAsync();
+      router.push("/login");
     } catch {
-      toast.error("로그아웃에 실패했습니다.");
-    }
-  };
-
-  const handleSave = () => {
-    if (!inputValue.trim()) {
-      toast.error("이름을 입력해주세요.");
-      return;
-    }
-    setUserName(inputValue.trim());
-    setName(inputValue.trim());
-    setIsEditing(false);
-    toast.success("이름이 저장되었습니다.");
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleSave();
-    } else if (e.key === "Escape") {
-      setIsEditing(false);
-      setInputValue(name);
+      // 토스트는 mutation 훅에서 처리
     }
   };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between gap-4 px-4">
-        {/* 로고 및 타이틀 */}
         <Link
           href="/"
           className="flex items-center gap-2 font-semibold text-lg hover:opacity-80 transition-opacity"
@@ -88,75 +34,32 @@ export function Header() {
           <span className="sm:hidden">상상단 모임</span>
         </Link>
 
-        {/* 우측 영역 */}
         <div className="flex items-center gap-2 sm:gap-4">
-          {/* 로그인된 사용자 표시 */}
-          {!isCheckingAuth && currentUser ? (
+          {currentUser && (
             <div className="flex items-center gap-2 text-sm">
-              {currentUser.role === "ADMIN" && (
-                <Shield className="size-4 text-blue-500" />
-              )}
+              {currentUser.role === "ADMIN" && <Shield className="size-4 text-blue-500" />}
               <span className="text-muted-foreground">
                 <User className="inline size-3 mr-1" />
                 {currentUser.name}
               </span>
             </div>
-          ) : !isCheckingAuth && (
-            <div className="flex items-center gap-2">
-              {isEditing ? (
-                <div className="flex items-center gap-1">
-                  <Input
-                    type="text"
-                    placeholder="이름 입력"
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    className="h-8 w-24 sm:w-32 text-sm"
-                    autoFocus
-                    aria-label="사용자 이름 입력"
-                  />
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleSave}
-                    className="h-8 px-2"
-                    aria-label="이름 저장"
-                  >
-                    <Check className="size-4" />
-                  </Button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label="이름 수정"
-                >
-                  <User className="size-4" />
-                  <span className="max-w-20 truncate">{name || "이름 입력"}</span>
-                  <Pencil className="size-3 opacity-50" />
-                </button>
-              )}
-            </div>
           )}
 
-          {/* 네비게이션 링크 */}
           <nav className="flex items-center gap-1 sm:gap-2">
             <ThemeToggle />
-            <Button variant="ghost" size="sm" asChild>
-              <Link
-                href="/my"
-                className="flex items-center gap-1"
-                aria-label="내 신청 결과 페이지로 이동"
-              >
-                <ClipboardList className="size-4" />
-                <span className="hidden sm:inline">내 신청 결과</span>
-              </Link>
-            </Button>
-
-            {/* 로그인 상태에 따른 버튼 표시 */}
-            {!isCheckingAuth && (
-              currentUser ? (
+            {!isCheckingAuth &&
+              (currentUser ? (
                 <>
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link
+                      href="/my"
+                      className="flex items-center gap-1"
+                      aria-label="내 신청 결과 페이지로 이동"
+                    >
+                      <ClipboardList className="size-4" />
+                      <span className="hidden sm:inline">내 신청 결과</span>
+                    </Link>
+                  </Button>
                   {currentUser.role === "ADMIN" && (
                     <Button variant="outline" size="sm" asChild>
                       <Link
@@ -172,8 +75,9 @@ export function Header() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={handleLogout}
+                    onClick={() => void handleLogout()}
                     className="flex items-center gap-1"
+                    disabled={logoutMutation.isPending}
                   >
                     <LogOut className="size-4" />
                     <span className="hidden sm:inline">로그아웃</span>
@@ -190,8 +94,7 @@ export function Header() {
                     <span className="hidden sm:inline">로그인</span>
                   </Link>
                 </Button>
-              )
-            )}
+              ))}
           </nav>
         </div>
       </div>

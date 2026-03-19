@@ -3,7 +3,12 @@ import { Meeting, Application, ApplicationStatus } from "../../../entity";
 
 @Injectable()
 export class MeetingMapper {
-  toListResponse(meeting: Meeting) {
+  toListResponse(
+    meeting: Meeting,
+    applicantCount: number,
+    canApply: boolean,
+    myApplicationStatus: ApplicationStatus | null
+  ) {
     return {
       id: meeting.id,
       type: meeting.type,
@@ -11,47 +16,26 @@ export class MeetingMapper {
       description: meeting.description,
       capacity: meeting.capacity,
       announcementAt: meeting.announcementAt.toISOString(),
-    };
-  }
-
-  toUserListResponse(
-    meeting: Meeting,
-    canApply: boolean,
-    myApplicationStatus: ApplicationStatus | null
-  ) {
-    return {
-      ...this.toListResponse(meeting),
+      applicantCount,
       canApply,
       myApplicationStatus,
     };
   }
 
-  toDetailResponse(meeting: Meeting) {
-    return {
-      id: meeting.id,
-      type: meeting.type,
-      title: meeting.title,
-      description: meeting.description,
-      capacity: meeting.capacity,
-      announcementAt: meeting.announcementAt.toISOString(),
-    };
-  }
-
-  toUserDetailResponse(
+  toDetailResponse(
     meeting: Meeting,
+    applicantCount: number,
     canApply: boolean,
     myApplicationStatus: ApplicationStatus | null,
     myApplication: Application | null,
     userName?: string
   ) {
     return {
-      ...this.toDetailResponse(meeting),
-      canApply,
-      myApplicationStatus,
+      ...this.toListResponse(meeting, applicantCount, canApply, myApplicationStatus),
       myApplication: myApplication
         ? {
             applicationId: myApplication.id,
-            userName: userName || myApplication.user?.name,
+            applicantName: userName || myApplication.user?.name,
             status: myApplicationStatus ?? ApplicationStatus.PENDING,
             appliedAt: myApplication.createdAt.toISOString(),
           }
@@ -59,7 +43,13 @@ export class MeetingMapper {
     };
   }
 
-  toAdminResponse(meeting: Meeting) {
+  toAdminResponse(
+    meeting: Meeting,
+    applicantCount: number,
+    selectedCount: number,
+    rejectedCount: number,
+    pendingCount: number
+  ) {
     return {
       id: meeting.id,
       type: meeting.type,
@@ -68,6 +58,10 @@ export class MeetingMapper {
       capacity: meeting.capacity,
       announcementAt: meeting.announcementAt.toISOString(),
       createdAt: meeting.createdAt.toISOString(),
+      applicantCount,
+      selectedCount,
+      rejectedCount,
+      pendingCount,
     };
   }
 

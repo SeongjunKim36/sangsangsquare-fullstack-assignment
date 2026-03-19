@@ -6,23 +6,23 @@ import { CreateMeetingForm } from "../types";
 import { toast } from "sonner";
 import { getErrorMessage } from "../error-handler";
 import { QUERY_STALE_TIME } from "../constants";
+import { meetingKeys } from "./meetings";
 
 export const adminKeys = {
   all: ["admin"] as const,
   meetings: () => [...adminKeys.all, "meetings"] as const,
-  meetingDetail: (meetingId: number) =>
-    [...adminKeys.all, "meeting", meetingId] as const,
-  applications: (meetingId: number) =>
-    [...adminKeys.all, "applications", meetingId] as const,
+  meetingDetail: (meetingId: number) => [...adminKeys.all, "meeting", meetingId] as const,
+  applications: (meetingId: number) => [...adminKeys.all, "applications", meetingId] as const,
 };
 
 /**
  * 관리자 모임 목록 조회
  */
-export function useAdminMeetings() {
+export function useAdminMeetings(enabled = true) {
   return useQuery({
     queryKey: adminKeys.meetings(),
     queryFn: () => adminApiClient.getMeetings(),
+    enabled,
     staleTime: QUERY_STALE_TIME,
   });
 }
@@ -30,11 +30,11 @@ export function useAdminMeetings() {
 /**
  * 모임 신청자 목록 조회
  */
-export function useAdminMeetingApplications(meetingId?: number) {
+export function useAdminMeetingApplications(meetingId?: number, enabled = true) {
   return useQuery({
     queryKey: adminKeys.applications(meetingId!),
     queryFn: () => adminApiClient.getMeetingApplications(meetingId!),
-    enabled: Boolean(meetingId),
+    enabled: enabled && Boolean(meetingId),
     staleTime: QUERY_STALE_TIME / 5, // 1분 (관리자 페이지는 더 자주 갱신)
   });
 }
@@ -67,31 +67,29 @@ export function useUpdateApplicationStatus() {
 
   return useMutation({
     mutationFn: ({
+      meetingId,
       applicationId,
       status,
     }: {
+      meetingId: number;
       applicationId: number;
       status: "SELECTED" | "REJECTED";
-    }) => adminApiClient.updateApplicationStatus(applicationId, status),
+    }) => adminApiClient.updateApplicationStatus(meetingId, applicationId, status),
     // Optimistic UI: 즉시 UI 업데이트
     onMutate: async ({ applicationId, status }) => {
-      toast.loading(
-        status === "SELECTED" ? "선정 처리 중..." : "탈락 처리 중...",
-        { id: `status-${applicationId}` }
-      );
+      toast.loading(status === "SELECTED" ? "선정 처리 중..." : "탈락 처리 중...", {
+        id: `status-${applicationId}`,
+      });
       // 낙관적 업데이트를 위해 진행 중인 쿼리 취소
       await queryClient.cancelQueries({ queryKey: adminKeys.all });
     },
     onSuccess: (_, { status, applicationId }) => {
-      toast.success(
-        status === "SELECTED" ? "선정 완료!" : "탈락 처리 완료!",
-        { id: `status-${applicationId}` }
-      );
-      void queryClient.invalidateQueries({ queryKey: adminKeys.all });
-      void queryClient.invalidateQueries({ queryKey: ["meetings"] });
-      void queryClient.invalidateQueries({
-        queryKey: ["viewer-applications"],
+      toast.success(status === "SELECTED" ? "선정 완료!" : "탈락 처리 완료!", {
+        id: `status-${applicationId}`,
       });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.all });
+      void queryClient.invalidateQueries({ queryKey: meetingKeys.all });
+      void queryClient.invalidateQueries({ queryKey: meetingKeys.myApplications() });
     },
     onError: (error: unknown, { applicationId }) => {
       const message = getErrorMessage(error, "상태 변경 중 오류가 발생했습니다.");

@@ -1,13 +1,13 @@
 import { IsNotEmpty, IsString, MaxLength } from "class-validator";
 
-export class ApplyToMeetingDto {
+export class LoginDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)
-  applicantId: string;
+  userId: string;
 
   @IsString()
   @IsNotEmpty()
-  @MaxLength(50)
-  applicantName: string;
+  @MaxLength(100)
+  password: string;
 }

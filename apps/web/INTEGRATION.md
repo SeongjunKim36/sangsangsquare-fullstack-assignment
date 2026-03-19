@@ -108,17 +108,15 @@ toast.error("이미 신청한 모임입니다.");
 const data = await fetchMeetingDetail(parseInt(id));
 
 // After (통합)
-const { data, isLoading } = useMeetingDetail(meetingId, viewerId);
+const { data, isLoading } = useMeetingDetail(meetingId);
 ```
 
 #### 3. API Client 구조
 ```tsx
 // 실제 백엔드와 통신할 구조 추가
 export class MeetingsApiClient extends BaseApiClient {
-  async getMeetings(viewerId?: string): Promise<MeetingListItem[]> {
-    const response = await this.api.get("/meetings", {
-      params: viewerId ? { viewerId } : undefined,
-    });
+  async getMeetings(): Promise<MeetingListItem[]> {
+    const response = await this.api.get("/meetings");
     return response.data;
   }
 }
@@ -185,8 +183,8 @@ apps/web/
 │   ├── types.ts                   ✅ v0
 │   ├── date-utils.ts              ✅ v0
 │   ├── utils.ts                   ✅ v0
-│   ├── user-store.ts              ✅ v0
-│   └── mock-data.ts               🆕 임시 데이터
+│   ├── api-client/                ✅ 실제 API 연동
+│   └── react-query/               ✅ 세션 기반 상태 관리
 │
 └── hooks/
     ├── use-toast.ts               ✅ v0 (사용 안함)

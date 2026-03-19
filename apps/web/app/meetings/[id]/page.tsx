@@ -1,9 +1,8 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -16,12 +15,13 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Header } from "@/components/header";
+import { LoginRequiredState } from "@/components/login-required-state";
 import { MeetingTypeBadge } from "@/components/meeting-type-badge";
 import { ApplicationStatusBadge } from "@/components/application-status-badge";
-import { getViewerId, getViewerIdentity } from "@/lib/user-store";
 import { formatDateKorean, getRelativeTime, isAnnouncementPassed } from "@/lib/date-utils";
 import { getErrorMessage } from "@/lib/error-handler";
 import { useApplyToMeeting, useMeetingDetail } from "@/lib/react-query/meetings";
+import { useCurrentUser } from "@/lib/react-query/auth";
 import {
   ArrowLeft,
   Users,
@@ -41,37 +41,23 @@ export default function MeetingDetailPage({ params }: MeetingDetailPageProps) {
   const { id } = use(params);
   const meetingId = Number(id);
   const router = useRouter();
-  const [viewerId, setViewerId] = useState<string>();
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-
-  useEffect(() => {
-    setViewerId(getViewerId());
-  }, []);
+  const currentUserQuery = useCurrentUser();
 
   const {
     data: meeting,
     isLoading,
     error,
     refetch,
-  } = useMeetingDetail(meetingId, viewerId);
+  } = useMeetingDetail(meetingId, Boolean(currentUserQuery.data));
   const applyMutation = useApplyToMeeting();
 
-  const isInitialLoading = isLoading || viewerId === undefined;
+  const isInitialLoading = currentUserQuery.isLoading || isLoading;
 
   const handleApply = async () => {
-    const { viewerId: applicantId, userName } = getViewerIdentity();
-
-    if (!userName.trim()) {
-      toast.error("먼저 상단에서 이름을 입력해주세요.");
-      setShowConfirmDialog(false);
-      return;
-    }
-
     try {
       await applyMutation.mutateAsync({
         meetingId,
-        applicantId,
-        applicantName: userName.trim(),
       });
       setShowConfirmDialog(false);
       await refetch();
@@ -98,6 +84,53 @@ export default function MeetingDetailPage({ params }: MeetingDetailPageProps) {
               </div>
             </CardContent>
           </Card>
+        </main>
+      </div>
+    );
+  }
+
+  if (currentUserQuery.error) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 container mx-auto px-4 py-6 max-w-2xl">
+          <Button variant="ghost" asChild className="mb-6">
+            <Link href="/">
+              <ArrowLeft className="size-4" />
+              목록으로
+            </Link>
+          </Button>
+          <Card className="border-destructive/50">
+            <CardContent className="flex flex-col items-center justify-center gap-4 py-10 text-center">
+              <AlertCircle className="size-12 text-destructive" />
+              <div>
+                <h3 className="font-semibold text-lg">오류가 발생했습니다</h3>
+                <p className="text-muted-foreground mt-1">
+                  {getErrorMessage(
+                    currentUserQuery.error,
+                    "로그인 상태를 확인하는 중 오류가 발생했습니다."
+                  )}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
+  if (!currentUserQuery.data) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 container mx-auto px-4 py-6 max-w-2xl">
+          <Button variant="ghost" asChild className="mb-6">
+            <Link href="/">
+              <ArrowLeft className="size-4" />
+              목록으로
+            </Link>
+          </Button>
+          <LoginRequiredState description="모임 상세와 신청은 로그인 후 이용할 수 있습니다." />
         </main>
       </div>
     );
@@ -204,7 +237,12 @@ export default function MeetingDetailPage({ params }: MeetingDetailPageProps) {
               모임 신청하기
             </Button>
           ) : hasApplied ? (
-            <Button size="lg" className="w-full text-base cursor-default" variant="secondary" disabled>
+            <Button
+              size="lg"
+              className="w-full text-base cursor-default"
+              variant="secondary"
+              disabled
+            >
               <Clock className="size-5" />
               신청 완료
             </Button>

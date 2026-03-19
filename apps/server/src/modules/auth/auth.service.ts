@@ -1,46 +1,13 @@
-import { Injectable, UnauthorizedException, ConflictException } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { User, UserRole } from "../../entity/user.entity";
+import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { User } from "../../entity/user.entity";
+import { UserService } from "../user/user.service";
 
 @Injectable()
 export class AuthService {
-  constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>
-  ) {}
-
-  async register(userId: string, password: string, name: string, role: UserRole = UserRole.USER) {
-    const existing = await this.userRepository.findOne({
-      where: { userId },
-    });
-
-    if (existing) {
-      throw new ConflictException("이미 사용 중인 아이디입니다.");
-    }
-
-    const user = this.userRepository.create({
-      userId,
-      password,
-      name,
-      role,
-    });
-
-    await user.hashPassword();
-    await this.userRepository.save(user);
-
-    return {
-      id: user.id,
-      userId: user.userId,
-      name: user.name,
-      role: user.role,
-    };
-  }
+  constructor(private readonly userService: UserService) {}
 
   async validateUser(userId: string, password: string): Promise<User | null> {
-    const user = await this.userRepository.findOne({
-      where: { userId },
-    });
+    const user = await this.userService.findByUserId(userId);
 
     if (!user || !user.password) {
       return null;

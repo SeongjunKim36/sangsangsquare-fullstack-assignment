@@ -1,19 +1,39 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { INestApplication, ValidationPipe } from "@nestjs/common";
+import { ValidationPipe } from "@nestjs/common";
+import { NestExpressApplication } from "@nestjs/platform-express";
+import type { Express } from "express";
 import * as request from "supertest";
 import { AppModule } from "../src/modules/app.module";
 import { DataSource } from "typeorm";
+import * as bcrypt from "bcrypt";
+import { middleware } from "../src/modules/app.middleware";
+
+type CreateMeetingResponse = {
+  meetingId: number;
+};
+
+type ApplyToMeetingResponse = {
+  applicationId: number;
+};
+
+type UpdateApplicationResponse = {
+  status: string;
+  message: string;
+};
 
 describe("Transaction & Concurrency Tests (e2e)", () => {
-  let app: INestApplication;
+  let app: NestExpressApplication;
   let dataSource: DataSource;
+  let httpApp: Express;
+  let adminCookie: string[];
+  let userCookies: string[][];
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
 
-    app = moduleFixture.createNestApplication();
+    app = moduleFixture.createNestApplication<NestExpressApplication>();
 
     app.useGlobalPipes(
       new ValidationPipe({
@@ -22,16 +42,18 @@ describe("Transaction & Concurrency Tests (e2e)", () => {
         forbidNonWhitelisted: true,
       })
     );
-
-    app.setGlobalPrefix("api");
+    middleware(app);
 
     await app.init();
 
+    httpApp = app.getHttpAdapter().getInstance();
     dataSource = moduleFixture.get<DataSource>(DataSource);
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   });
 
   describe("Application Status Update with Pessimistic Lock", () => {
@@ -41,9 +63,54 @@ describe("Transaction & Concurrency Tests (e2e)", () => {
     beforeEach(async () => {
       await dataSource.query("DELETE FROM applications");
       await dataSource.query("DELETE FROM meetings");
+      await dataSource.query("DELETE FROM users");
+      await dataSource.query("DELETE FROM meeting_categories");
 
-      const createResponse = await request(app.getHttpServer())
+      await dataSource.query(
+        `INSERT INTO meeting_categories (key, label, sortOrder, isActive, createdAt, updatedAt)
+         VALUES
+         ('BOOK', '독서', 1, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+         ('EXERCISE', '운동', 2, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+         ('RECORD', '기록', 3, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+         ('ENGLISH', '영어', 4, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+      );
+
+      const adminPassword = await bcrypt.hash("admin123", 10);
+      const userPassword = await bcrypt.hash("user123", 10);
+
+      await dataSource.query(
+        `INSERT INTO users (userId, name, password, role, createdAt, updatedAt)
+         VALUES
+         (?, ?, ?, 'ADMIN', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+         (?, ?, ?, 'USER', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+         (?, ?, ?, 'USER', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+         (?, ?, ?, 'USER', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [
+          "admin",
+          "관리자",
+          adminPassword,
+          "user1",
+          "테스트유저1",
+          userPassword,
+          "user2",
+          "테스트유저2",
+          userPassword,
+          "user3",
+          "테스트유저3",
+          userPassword,
+        ]
+      );
+
+      adminCookie = await loginAndGetCookie(httpApp, "admin", "admin123");
+      userCookies = [
+        await loginAndGetCookie(httpApp, "user1", "user123"),
+        await loginAndGetCookie(httpApp, "user2", "user123"),
+        await loginAndGetCookie(httpApp, "user3", "user123"),
+      ];
+
+      const createResponse = await request(httpApp)
         .post("/api/admin/meetings")
+        .set("Cookie", adminCookie)
         .send({
           type: "RECORD",
           title: "동시성 테스트 모임",
@@ -53,20 +120,21 @@ describe("Transaction & Concurrency Tests (e2e)", () => {
         })
         .expect(201);
 
-      meetingId = createResponse.body.meetingId;
+      const createBody = createResponse.body as CreateMeetingResponse;
+
+      meetingId = createBody.meetingId;
       expect(meetingId).toBeDefined();
       applicationIds = [];
 
-      for (let i = 1; i <= 3; i++) {
-        const applyResponse = await request(app.getHttpServer())
+      for (const userCookie of userCookies) {
+        const applyResponse = await request(httpApp)
           .post(`/api/meetings/${meetingId}/applications`)
-          .send({
-            applicantId: `test-user-${i}`,
-            applicantName: `테스터${i}`,
-          })
+          .set("Cookie", userCookie)
           .expect(201);
 
-        applicationIds.push(applyResponse.body.applicationId);
+        const applyBody = applyResponse.body as ApplyToMeetingResponse;
+
+        applicationIds.push(applyBody.applicationId);
       }
 
       expect(applicationIds).toHaveLength(3);
@@ -79,16 +147,13 @@ describe("Transaction & Concurrency Tests (e2e)", () => {
 
     it("should prevent capacity overflow with pessimistic lock", async () => {
       const promises = applicationIds.map((appId) =>
-        request(app.getHttpServer())
-          .patch(`/api/admin/applications/${appId}/status`)
+        request(httpApp)
+          .patch(`/api/admin/meetings/${meetingId}/applications/${appId}`)
+          .set("Cookie", adminCookie)
           .send({ status: "SELECTED" })
       );
 
       const results = await Promise.all(promises);
-
-      results.forEach((res, idx) => {
-        console.log(`Result ${idx}: status=${res.status}, body=`, res.body);
-      });
 
       const successCount = results.filter((res) => res.status === 200).length;
       const failedCount = results.filter((res) => res.status === 400).length;
@@ -97,45 +162,78 @@ describe("Transaction & Concurrency Tests (e2e)", () => {
       expect(failedCount).toBe(1);
 
       const failedResponse = results.find((res) => res.status === 400);
-      expect(failedResponse.body.message).toContain("정원");
+      expect(failedResponse).toBeDefined();
+
+      const failedBody = failedResponse?.body as UpdateApplicationResponse;
+      expect(failedBody.message).toContain("정원");
     });
 
     it("should handle sequential selections correctly", async () => {
-      const firstResult = await request(app.getHttpServer())
-        .patch(`/api/admin/applications/${applicationIds[0]}/status`)
+      const firstResult = await request(httpApp)
+        .patch(`/api/admin/meetings/${meetingId}/applications/${applicationIds[0]}`)
+        .set("Cookie", adminCookie)
         .send({ status: "SELECTED" });
 
       expect(firstResult.status).toBe(200);
 
-      const secondResult = await request(app.getHttpServer())
-        .patch(`/api/admin/applications/${applicationIds[1]}/status`)
+      const secondResult = await request(httpApp)
+        .patch(`/api/admin/meetings/${meetingId}/applications/${applicationIds[1]}`)
+        .set("Cookie", adminCookie)
         .send({ status: "SELECTED" });
 
       expect(secondResult.status).toBe(200);
 
-      const thirdResult = await request(app.getHttpServer())
-        .patch(`/api/admin/applications/${applicationIds[2]}/status`)
+      const thirdResult = await request(httpApp)
+        .patch(`/api/admin/meetings/${meetingId}/applications/${applicationIds[2]}`)
+        .set("Cookie", adminCookie)
         .send({ status: "SELECTED" });
 
       expect(thirdResult.status).toBe(400);
-      expect(thirdResult.body.message).toContain("정원");
+
+      const thirdBody = thirdResult.body as UpdateApplicationResponse;
+      expect(thirdBody.message).toContain("정원");
     });
 
     it("should allow rejection without capacity check", async () => {
-      await request(app.getHttpServer())
-        .patch(`/api/admin/applications/${applicationIds[0]}/status`)
+      await request(httpApp)
+        .patch(`/api/admin/meetings/${meetingId}/applications/${applicationIds[0]}`)
+        .set("Cookie", adminCookie)
         .send({ status: "SELECTED" });
 
-      await request(app.getHttpServer())
-        .patch(`/api/admin/applications/${applicationIds[1]}/status`)
+      await request(httpApp)
+        .patch(`/api/admin/meetings/${meetingId}/applications/${applicationIds[1]}`)
+        .set("Cookie", adminCookie)
         .send({ status: "SELECTED" });
 
-      const rejectResult = await request(app.getHttpServer())
-        .patch(`/api/admin/applications/${applicationIds[2]}/status`)
+      const rejectResult = await request(httpApp)
+        .patch(`/api/admin/meetings/${meetingId}/applications/${applicationIds[2]}`)
+        .set("Cookie", adminCookie)
         .send({ status: "REJECTED" });
 
       expect(rejectResult.status).toBe(200);
-      expect(rejectResult.body.status).toBe("REJECTED");
+
+      const rejectBody = rejectResult.body as UpdateApplicationResponse;
+      expect(rejectBody.status).toBe("REJECTED");
     });
   });
 });
+
+async function loginAndGetCookie(
+  httpApp: Express,
+  userId: string,
+  password: string
+): Promise<string[]> {
+  const response = await request(httpApp)
+    .post("/api/auth/login")
+    .send({ userId, password })
+    .expect(200);
+
+  const cookies = response.headers["set-cookie"];
+  expect(Array.isArray(cookies)).toBe(true);
+
+  if (!Array.isArray(cookies)) {
+    throw new Error("로그인 세션 쿠키를 찾을 수 없습니다.");
+  }
+
+  return cookies;
+}

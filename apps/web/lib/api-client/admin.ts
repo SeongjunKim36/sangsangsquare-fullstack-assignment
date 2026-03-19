@@ -36,9 +36,7 @@ class AdminApiClient extends BaseApiClient {
    * 모임 신청자 목록 조회
    */
   async getMeetingApplications(meetingId: number): Promise<Applicant[]> {
-    const response = await this.api.get(
-      `/admin/meetings/${meetingId}/applications`
-    );
+    const response = await this.api.get(`/admin/meetings/${meetingId}/applications`);
     return response.data;
   }
 
@@ -46,11 +44,12 @@ class AdminApiClient extends BaseApiClient {
    * 신청자 상태 변경 (선정/탈락)
    */
   async updateApplicationStatus(
+    meetingId: number,
     applicationId: number,
     status: "SELECTED" | "REJECTED"
   ): Promise<UpdateApplicationStatusResponse> {
     const response = await this.api.patch(
-      `/admin/applications/${applicationId}/status`,
+      `/admin/meetings/${meetingId}/applications/${applicationId}`,
       { status }
     );
     return response.data;

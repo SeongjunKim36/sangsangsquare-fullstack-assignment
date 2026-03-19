@@ -51,6 +51,7 @@ pnpm seed
 - **admin** / password: `admin123` - 관리자 계정 (ADMIN)
 - **user1** / password: `user123` - 일반 사용자 1 (USER)
 - **user2** / password: `user123` - 일반 사용자 2 (USER)
+- **user3** / password: `user123` - 일반 사용자 3 (USER)
 
 > 💡 **Tip**: seed 명령어는 중복 체크를 하므로 여러 번 실행해도 안전합니다.
 
@@ -102,9 +103,7 @@ pnpm test:e2e
 
 ### Phase 3-4 설계 개선
 1. **Mapper 패턴 적용** - DTO 변환 로직을 Service에서 분리하여 단일 책임 원칙 준수
-2. **RESTful 엔드포인트 개선** - 리소스 계층 구조를 명확히 표현
-   - 변경 전: `PATCH /api/admin/applications/:applicationId/status`
-   - 변경 후: `PATCH /api/admin/meetings/:meetingId/applications/:applicationId/status`
+2. **RESTful 엔드포인트 개선** - 관리자 상태 변경 경로를 `PATCH /api/admin/meetings/:meetingId/applications/:applicationId`로 정리
 3. **MeetingCategory 테이블 분리** - 하드코딩된 Enum을 데이터베이스 테이블로 분리하여 동적 관리 가능
 
 ---

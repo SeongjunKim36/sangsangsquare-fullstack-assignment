@@ -13,6 +13,8 @@ export enum ApplicationStatus {
   REJECTED = "REJECTED",
 }
 
+export type UserRole = "USER" | "ADMIN";
+
 // 모임 목록 아이템 타입
 export interface MeetingListItem {
   id: number;
@@ -50,6 +52,29 @@ export interface MyApplication {
   appliedAt: string;
 }
 
+export interface CurrentUser {
+  id: number;
+  userId: string;
+  name: string;
+  role: UserRole;
+}
+
+export interface LoginForm {
+  userId: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  success: boolean;
+  message: string;
+  user: CurrentUser;
+}
+
+export interface LogoutResponse {
+  success: boolean;
+  message: string;
+}
+
 // 관리자 페이지용 타입
 export interface CreateMeetingForm {
   type: MeetingType;
@@ -75,7 +100,8 @@ export interface AdminMeetingItem {
 
 export interface Applicant {
   applicationId: number;
-  applicantId: string;
+  meetingId: number;
+  userId: string;
   applicantName: string;
   status: ApplicationStatus;
   appliedAt: string;

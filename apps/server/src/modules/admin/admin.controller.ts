@@ -29,7 +29,7 @@ export class AdminController {
     return this.adminService.findApplications(meetingId);
   }
 
-  @Patch("meetings/:meetingId/applications/:applicationId/status")
+  @Patch("meetings/:meetingId/applications/:applicationId")
   async updateApplicationStatus(
     @Param("meetingId", ParseIntPipe) meetingId: number,
     @Param("applicationId", ParseIntPipe) applicationId: number,

@@ -10,20 +10,10 @@ export class UserService {
     private readonly userRepository: Repository<User>
   ) {}
 
-  async findOrCreate(userId: string, name?: string): Promise<User> {
-    let user = await this.userRepository.findOne({
-      where: { userId },
+  async findById(id: number): Promise<User | null> {
+    return this.userRepository.findOne({
+      where: { id },
     });
-
-    if (!user) {
-      user = this.userRepository.create({
-        userId,
-        name: name || userId,
-      });
-      await this.userRepository.save(user);
-    }
-
-    return user;
   }
 
   async findByUserId(userId: string): Promise<User | null> {

@@ -54,10 +54,29 @@ export class AdminService {
    */
   async findAllMeetings() {
     const meetings = await this.meetingRepository.find({
+      relations: ["applications"],
       order: { createdAt: "DESC" },
     });
 
-    return meetings.map((meeting) => this.meetingMapper.toAdminResponse(meeting));
+    return meetings.map((meeting) => {
+      const applicantCount = meeting.applications?.length || 0;
+      const selectedCount =
+        meeting.applications?.filter((app) => app.status === ApplicationStatus.SELECTED).length ||
+        0;
+      const rejectedCount =
+        meeting.applications?.filter((app) => app.status === ApplicationStatus.REJECTED).length ||
+        0;
+      const pendingCount =
+        meeting.applications?.filter((app) => app.status === ApplicationStatus.PENDING).length || 0;
+
+      return this.meetingMapper.toAdminResponse(
+        meeting,
+        applicantCount,
+        selectedCount,
+        rejectedCount,
+        pendingCount
+      );
+    });
   }
 
   /**
@@ -66,13 +85,28 @@ export class AdminService {
   async findOneMeeting(meetingId: number) {
     const meeting = await this.meetingRepository.findOne({
       where: { id: meetingId },
+      relations: ["applications"],
     });
 
     if (!meeting) {
       throw new NotFoundException("모임을 찾을 수 없습니다.");
     }
 
-    return this.meetingMapper.toAdminResponse(meeting);
+    const applicantCount = meeting.applications?.length || 0;
+    const selectedCount =
+      meeting.applications?.filter((app) => app.status === ApplicationStatus.SELECTED).length || 0;
+    const rejectedCount =
+      meeting.applications?.filter((app) => app.status === ApplicationStatus.REJECTED).length || 0;
+    const pendingCount =
+      meeting.applications?.filter((app) => app.status === ApplicationStatus.PENDING).length || 0;
+
+    return this.meetingMapper.toAdminResponse(
+      meeting,
+      applicantCount,
+      selectedCount,
+      rejectedCount,
+      pendingCount
+    );
   }
 
   /**
@@ -95,8 +129,9 @@ export class AdminService {
 
     return applications.map((app) => ({
       applicationId: app.id,
+      meetingId: app.meetingId,
       userId: app.user.userId,
-      userName: app.user.name,
+      applicantName: app.user.name,
       status: app.status,
       appliedAt: app.createdAt.toISOString(),
     }));

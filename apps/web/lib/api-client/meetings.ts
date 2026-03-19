@@ -1,64 +1,41 @@
 import { BaseApiClient } from "./base";
-import {
-  MeetingListItem,
-  MeetingDetail,
-  MyApplication,
-  MeetingApplicationSummary,
-} from "../types";
+import { MeetingListItem, MeetingDetail, MyApplication, MeetingApplicationSummary } from "../types";
 
 class MeetingsApiClient extends BaseApiClient {
   /**
    * 모임 목록 조회
    */
-  async getMeetings(viewerId?: string): Promise<MeetingListItem[]> {
-    const response = await this.api.get("/meetings", {
-      params: viewerId ? { viewerId } : undefined,
-    });
+  async getMeetings(): Promise<MeetingListItem[]> {
+    const response = await this.api.get("/meetings");
     return response.data;
   }
 
   /**
    * 모임 상세 조회
    */
-  async getMeetingDetail(
-    meetingId: number,
-    viewerId?: string
-  ): Promise<MeetingDetail> {
-    const response = await this.api.get(`/meetings/${meetingId}`, {
-      params: viewerId ? { viewerId } : undefined,
-    });
+  async getMeetingDetail(meetingId: number): Promise<MeetingDetail> {
+    const response = await this.api.get(`/meetings/${meetingId}`);
     return response.data;
   }
 
   /**
    * 모임 신청
    */
-  async applyToMeeting(
-    meetingId: number,
-    body: {
-      applicantId: string;
-      applicantName: string;
-    }
-  ): Promise<{
+  async applyToMeeting(meetingId: number): Promise<{
     success: boolean;
     message: string;
     applicationId: number;
     application: MeetingApplicationSummary;
   }> {
-    const response = await this.api.post(
-      `/meetings/${meetingId}/applications`,
-      body
-    );
+    const response = await this.api.post(`/meetings/${meetingId}/applications`);
     return response.data;
   }
 
   /**
    * 내 신청 결과 조회
    */
-  async getViewerApplications(viewerId: string): Promise<MyApplication[]> {
-    const response = await this.api.get("/viewer/applications", {
-      params: { viewerId },
-    });
+  async getMyApplications(): Promise<MyApplication[]> {
+    const response = await this.api.get("/me/applications");
     return response.data;
   }
 }

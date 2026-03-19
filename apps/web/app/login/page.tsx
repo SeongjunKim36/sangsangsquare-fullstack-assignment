@@ -1,23 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Shield, ArrowLeft } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { api } from "@/lib/api";
+import { authApiClient } from "@/lib/api-client/auth";
+import { getErrorMessage } from "@/lib/error-handler";
+import { authKeys, useCurrentUser } from "@/lib/react-query/auth";
 
 export default function LoginPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const currentUserQuery = useCurrentUser();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     userId: "",
     password: "",
   });
+
+  useEffect(() => {
+    if (!currentUserQuery.data) {
+      return;
+    }
+
+    router.replace(currentUserQuery.data.role === "ADMIN" ? "/admin" : "/");
+  }, [currentUserQuery.data, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,20 +48,21 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await api.post("/auth/login", {
+      const response = await authApiClient.login({
         userId: formData.userId.trim(),
         password: formData.password,
       });
 
-      toast.success(response.data.message);
+      queryClient.setQueryData(authKeys.me(), response.user);
+      toast.success(response.message);
 
-      if (response.data.user.role === "ADMIN") {
+      if (response.user.role === "ADMIN") {
         router.push("/admin");
       } else {
         router.push("/");
       }
-    } catch (error: any) {
-      const message = error?.response?.data?.message || "로그인에 실패했습니다.";
+    } catch (error: unknown) {
+      const message = getErrorMessage(error, "로그인에 실패했습니다.");
       toast.error(message);
     } finally {
       setIsLoading(false);
@@ -76,7 +90,7 @@ export default function LoginPage() {
               <CardTitle className="text-2xl">로그인</CardTitle>
             </div>
             <CardDescription className="text-center">
-              관리자 계정으로 로그인하세요
+              사내 테스트 계정으로 로그인하세요
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -88,9 +102,7 @@ export default function LoginPage() {
                   type="text"
                   placeholder="아이디를 입력하세요"
                   value={formData.userId}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, userId: e.target.value }))
-                  }
+                  onChange={(e) => setFormData((prev) => ({ ...prev, userId: e.target.value }))}
                   disabled={isLoading}
                   autoComplete="username"
                 />
@@ -103,9 +115,7 @@ export default function LoginPage() {
                   type="password"
                   placeholder="비밀번호를 입력하세요"
                   value={formData.password}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, password: e.target.value }))
-                  }
+                  onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
                   disabled={isLoading}
                   autoComplete="current-password"
                 />
@@ -125,6 +135,21 @@ export default function LoginPage() {
                 </Link>
               </div>
             </form>
+
+            <div className="mt-6 rounded-lg border bg-muted/30 p-4 text-sm">
+              <p className="font-medium">테스트 계정</p>
+              <div className="mt-2 space-y-1 text-muted-foreground">
+                <p>
+                  관리자: <code>admin</code> / <code>admin123</code>
+                </p>
+                <p>
+                  사용자: <code>user1</code> / <code>user123</code>
+                </p>
+                <p>
+                  사용자: <code>user2</code> / <code>user123</code>
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </main>

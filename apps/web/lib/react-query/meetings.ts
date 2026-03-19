@@ -9,20 +9,19 @@ import { QUERY_STALE_TIME } from "../constants";
 
 export const meetingKeys = {
   all: ["meetings"] as const,
-  list: (viewerId?: string) => [...meetingKeys.all, "list", viewerId] as const,
-  detail: (meetingId: number, viewerId?: string) =>
-    [...meetingKeys.all, "detail", meetingId, viewerId] as const,
-  viewerApplications: (viewerId?: string) =>
-    ["viewer-applications", viewerId] as const,
+  list: () => [...meetingKeys.all, "list"] as const,
+  detail: (meetingId: number) => [...meetingKeys.all, "detail", meetingId] as const,
+  myApplications: () => ["my-applications"] as const,
 };
 
 /**
  * 모임 목록 조회
  */
-export function useMeetings(viewerId?: string) {
+export function useMeetings(enabled = true) {
   return useQuery({
-    queryKey: meetingKeys.list(viewerId),
-    queryFn: () => meetingsApiClient.getMeetings(viewerId),
+    queryKey: meetingKeys.list(),
+    queryFn: () => meetingsApiClient.getMeetings(),
+    enabled,
     staleTime: QUERY_STALE_TIME,
   });
 }
@@ -30,11 +29,11 @@ export function useMeetings(viewerId?: string) {
 /**
  * 모임 상세 조회
  */
-export function useMeetingDetail(meetingId: number, viewerId?: string) {
+export function useMeetingDetail(meetingId: number, enabled = true) {
   return useQuery({
-    queryKey: meetingKeys.detail(meetingId, viewerId),
-    queryFn: () => meetingsApiClient.getMeetingDetail(meetingId, viewerId),
-    enabled: Number.isFinite(meetingId) && meetingId > 0,
+    queryKey: meetingKeys.detail(meetingId),
+    queryFn: () => meetingsApiClient.getMeetingDetail(meetingId),
+    enabled: enabled && Number.isFinite(meetingId) && meetingId > 0,
     staleTime: QUERY_STALE_TIME,
   });
 }
@@ -42,11 +41,11 @@ export function useMeetingDetail(meetingId: number, viewerId?: string) {
 /**
  * 내 신청 결과 조회
  */
-export function useViewerApplications(viewerId?: string) {
+export function useMyApplications(enabled = true) {
   return useQuery({
-    queryKey: meetingKeys.viewerApplications(viewerId),
-    queryFn: () => meetingsApiClient.getViewerApplications(viewerId!),
-    enabled: Boolean(viewerId),
+    queryKey: meetingKeys.myApplications(),
+    queryFn: () => meetingsApiClient.getMyApplications(),
+    enabled,
     staleTime: QUERY_STALE_TIME,
   });
 }
@@ -58,26 +57,13 @@ export function useApplyToMeeting() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      meetingId,
-      applicantId,
-      applicantName,
-    }: {
-      meetingId: number;
-      applicantId: string;
-      applicantName: string;
-    }) =>
-      meetingsApiClient.applyToMeeting(meetingId, {
-        applicantId,
-        applicantName,
-      }),
+    mutationFn: ({ meetingId }: { meetingId: number }) =>
+      meetingsApiClient.applyToMeeting(meetingId),
     onSuccess: () => {
       toast.success("모임 신청이 완료되었습니다!");
       celebrateSuccess(); // 🎉 Confetti 효과
       void queryClient.invalidateQueries({ queryKey: meetingKeys.all });
-      void queryClient.invalidateQueries({
-        queryKey: ["viewer-applications"],
-      });
+      void queryClient.invalidateQueries({ queryKey: meetingKeys.myApplications() });
     },
     onError: (error: unknown) => {
       const message = getErrorMessage(error, "신청 중 오류가 발생했습니다.");

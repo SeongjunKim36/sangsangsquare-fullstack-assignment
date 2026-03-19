@@ -40,12 +40,6 @@ export class User {
   @OneToMany(() => Application, (application) => application.user)
   applications: Application[];
 
-  async hashPassword(): Promise<void> {
-    if (this.password) {
-      this.password = await bcrypt.hash(this.password, 10);
-    }
-  }
-
   async validatePassword(plainPassword: string): Promise<boolean> {
     if (!this.password) return false;
     return bcrypt.compare(plainPassword, this.password);

@@ -17,7 +17,7 @@
 pnpm install
 
 # 2. 데이터 시딩 (사용자, 카테고리)
-pnpm seed
+pnpm --filter server seed
 
 # 3. 개발 서버 실행
 pnpm dev
@@ -182,26 +182,28 @@ CHECK (status IN ('PENDING', 'SELECTED', 'REJECTED'))
 async login(@Body() dto: LoginDto, @Session() session) {
   const user = await this.authService.validateUser(dto);
   session.userId = user.id;
-  session.role = user.role;
   return { success: true };
 }
 
-// 가드로 권한 체크
-@UseGuards(AuthGuard)
-@Get('/meetings')
-async getMeetings(@CurrentUser() user: User) { ... }
+// 사용자 API는 AuthGuard, 관리자 API는 AuthGuard + AdminGuard
+@UseGuards(AuthGuard, AdminGuard)
+@Get('/admin/meetings')
+async getAdminMeetings() { ... }
 ```
 
 ### 주요 엔드포인트
 
-**사용자 API**
-- `GET /api/meetings` - 모임 목록
-- `POST /api/meetings/:id/applications` - 신청
-- `GET /api/viewer/applications` - 내 신청 결과
+**사용자 API** (세션 인증 필수)
+- `GET /api/meetings` - 모임 목록 (내 신청 상태 포함)
+- `GET /api/meetings/:id` - 모임 상세
+- `POST /api/meetings/:id/applications` - 모임 신청
+- `GET /api/me/applications` - 내 신청 결과
 
-**관리자 API**
+**관리자 API** (세션 인증 필수)
 - `POST /api/admin/meetings` - 모임 생성
-- `PATCH /api/admin/applications/:id/status` - 선정/탈락
+- `GET /api/admin/meetings` - 모임 목록 (통계 포함)
+- `GET /api/admin/meetings/:id/applications` - 신청자 목록
+- `PATCH /api/admin/meetings/:meetingId/applications/:id` - 선정/탈락
 
 ---
 
@@ -499,10 +501,8 @@ pnpm format
 
 ## 상세 문서
 
-- [과제 설계사항](./docs/design.md) - ERD, API 명세 상세
-- [백엔드 구현](./docs/backend.md) - 트랜잭션, 에러 처리
-- [UI/UX 개선](./docs/ui-ux.md) - 프론트엔드 개선 사항
-- [코드 품질](./docs/code-quality.md) - ESLint, Prettier 설정
+- [현재 아키텍처 요약](./docs/current-architecture.md) - 현재 제출 기준 엔드포인트와 인증 구조
+- [로그인 기반 사용자 통합 계획](./docs/login-based-user-unification-plan.md) - `viewer` 제거와 로그인 통합 작업 계획
 
 ---
 

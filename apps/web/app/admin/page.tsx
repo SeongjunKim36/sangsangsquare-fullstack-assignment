@@ -47,6 +47,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Skeleton } from "@/components/ui/skeleton";
 import { MeetingTypeBadge } from "@/components/meeting-type-badge";
 import { ApplicationStatusBadge } from "@/components/application-status-badge";
+import { LoginRequiredState } from "@/components/login-required-state";
 import { MeetingType, ApplicationStatus, AdminMeetingItem, Applicant } from "@/lib/types";
 import {
   useAdminMeetingApplications,
@@ -54,6 +55,7 @@ import {
   useCreateMeeting,
   useUpdateApplicationStatus,
 } from "@/lib/react-query/admin";
+import { useCurrentUser } from "@/lib/react-query/auth";
 import { formatDateKorean, getRelativeTime, isAnnouncementPassed } from "@/lib/date-utils";
 import { getErrorMessage } from "@/lib/error-handler";
 
@@ -76,15 +78,18 @@ export default function AdminPage() {
     applicant: Applicant | null;
     action: "select" | "reject";
   }>({ open: false, applicant: null, action: "select" });
+  const currentUserQuery = useCurrentUser();
+  const currentUser = currentUserQuery.data;
+  const isAdmin = currentUser?.role === "ADMIN";
 
-  const meetingsQuery = useAdminMeetings();
+  const meetingsQuery = useAdminMeetings(isAdmin);
   const createMeetingMutation = useCreateMeeting();
   const updateStatusMutation = useUpdateApplicationStatus();
 
   const meetings = meetingsQuery.data ?? [];
   const selectedMeeting = meetings.find((meeting) => meeting.id === selectedMeetingId) ?? null;
 
-  const applicationsQuery = useAdminMeetingApplications(selectedMeetingId ?? undefined);
+  const applicationsQuery = useAdminMeetingApplications(selectedMeetingId ?? undefined, isAdmin);
   const applicants = applicationsQuery.data ?? [];
 
   const handleCreateMeeting = async () => {
@@ -133,6 +138,7 @@ export default function AdminPage() {
 
     try {
       await updateStatusMutation.mutateAsync({
+        meetingId: selectedMeeting.id,
         applicationId: applicant.applicationId,
         status: action === "select" ? "SELECTED" : "REJECTED",
       });
@@ -142,6 +148,78 @@ export default function AdminPage() {
       // 토스트는 mutation 훅에서 처리
     }
   };
+
+  if (currentUserQuery.isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <main className="container mx-auto px-4 py-10">
+          <div className="grid gap-6 lg:grid-cols-[2fr_3fr]">
+            <Skeleton className="h-80 w-full" />
+            <Skeleton className="h-80 w-full" />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (currentUserQuery.error) {
+    return (
+      <div className="min-h-screen bg-background">
+        <main className="container mx-auto px-4 py-10">
+          <Card className="border-destructive/50">
+            <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
+              <AlertCircle className="size-12 text-destructive" />
+              <div className="space-y-1">
+                <h2 className="text-xl font-semibold">오류가 발생했습니다</h2>
+                <p className="text-sm text-muted-foreground">
+                  {getErrorMessage(
+                    currentUserQuery.error,
+                    "로그인 상태를 확인하는 중 오류가 발생했습니다."
+                  )}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-background">
+        <main className="container mx-auto px-4 py-10">
+          <LoginRequiredState
+            title="관리자 로그인이 필요합니다"
+            description="관리자 계정으로 로그인한 뒤 관리자 기능을 사용할 수 있습니다."
+          />
+        </main>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-background">
+        <main className="container mx-auto px-4 py-10">
+          <Card className="border-destructive/40">
+            <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
+              <AlertCircle className="size-12 text-destructive" />
+              <div className="space-y-1">
+                <h2 className="text-xl font-semibold">관리자 권한이 필요합니다</h2>
+                <p className="text-sm text-muted-foreground">
+                  현재 계정으로는 관리자 페이지에 접근할 수 없습니다.
+                </p>
+              </div>
+              <Button asChild variant="outline">
+                <Link href="/">메인으로 돌아가기</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -168,8 +246,7 @@ export default function AdminPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <Plus className="size-4" />
-                  새 모임 생성
+                  <Plus className="size-4" />새 모임 생성
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -302,7 +379,11 @@ export default function AdminPage() {
                 {!selectedMeetingId || !selectedMeeting ? (
                   <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
                     <Users className="size-12 opacity-50" />
-                    <p>{selectedMeetingId ? "모임 정보를 불러오는 중입니다" : "좌측에서 모임을 선택하세요"}</p>
+                    <p>
+                      {selectedMeetingId
+                        ? "모임 정보를 불러오는 중입니다"
+                        : "좌측에서 모임을 선택하세요"}
+                    </p>
                   </div>
                 ) : applicationsQuery.isLoading ? (
                   <ApplicantTableSkeleton />

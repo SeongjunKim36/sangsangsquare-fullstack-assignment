@@ -25,17 +25,12 @@ export function middleware(app: NestExpressApplication) {
   app.enableCors({
     origin: true,
     credentials: true,
-    exposedHeaders: ["Authorization"],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type"],
   });
 
   // 4. Swagger
-  const config = new DocumentBuilder()
-    .setTitle("API DOCS")
-    .setVersion("1.0")
-    .addBearerAuth({ type: "http", scheme: "bearer", name: "JWT", in: "header" })
-    .build();
+  const config = new DocumentBuilder().setTitle("API DOCS").setVersion("1.0").build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup("/api", app, document, {
     swaggerOptions: { defaultModelsExpandDepth: -1 },
