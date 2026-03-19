@@ -1,305 +1,145 @@
 # 상상단 단톡방 모임 신청 시스템
 
-> 📋 **과제 원문**: 모임 생성부터 신청, 선정까지의 과정을 효율적으로 관리할 수 있는 시스템
-> 관리자가 신청자를 검토한 뒤 발표일에 선정 결과를 안내하는 방식으로 운영
+## 구현 관점
+
+이 과제는 **CRUD보다 상태 전이와 운영 규칙 모델링**에 초점을 맞췄습니다.
+
+- 사용자는 **발표 전 결과를 알 수 없고**, 관리자는 **발표일 이후에만 심사를 반영**할 수 있게 했습니다.
+- 신청 중복과 정원 초과는 **UI가 아니라 서버와 DB 제약으로 방지**했습니다.
+- UI 개선은 보조 요소로 두고, **핵심 도메인 규칙이 먼저 깨지지 않도록** 설계했습니다.
 
 ---
 
-## 📚 목차
-
-- [로컬 실행 방법](#로컬-실행-방법)
-- [기술 스택](#기술-스택)
-- [주요 기능](#주요-기능)
-- [구현 중 주요 고민 사항](#구현-중-주요-고민-사항-및-해결-방법)
-- [데이터베이스 설계](#데이터베이스-설계)
-- [API 명세](#api-명세)
-- [코드 품질 관리](#코드-품질-관리)
-- [프로젝트 구조](#프로젝트-구조)
-- [과제 소요 시간](#과제-소요-시간)
-
----
-
-## 로컬 실행 방법
-
-### 1. 사전 요구사항
-
-- **Node.js** 22 이상
-- **pnpm** (`npm install -g pnpm`)
-
-### 2. 설치
+## 빠른 실행
 
 ```bash
-# 의존성 설치
+# 1. 의존성 설치
 pnpm install
-```
 
-### 3. 환경 변수 설정 (선택 사항)
+# 2. 데이터 시딩 (사용자, 카테고리)
+pnpm seed
 
-```bash
-# 백엔드 (기본값 사용 가능)
-cp apps/server/.env.example apps/server/.env
-
-# 프론트엔드 (기본값 사용 가능)
-cp apps/web/.env.example apps/web/.env
-```
-
-**기본 설정값:**
-- 백엔드: `http://localhost:4000/api`
-- 프론트엔드: `http://localhost:3000`
-- 데이터베이스: SQLite (`apps/server/database.sqlite`)
-
-### 4. 개발 서버 실행
-
-```bash
-# 🚀 백엔드 + 프론트엔드 동시 실행 (권장)
+# 3. 개발 서버 실행
 pnpm dev
 ```
 
-**개별 실행:**
-```bash
-# 백엔드만 실행
-pnpm start:dev   # → http://localhost:4000/api
+- **프론트엔드**: http://localhost:3000
+- **백엔드 API**: http://localhost:4000/api
 
-# 프론트엔드만 실행
-pnpm dev:web     # → http://localhost:3000
+**테스트 계정**
+- 일반 사용자: `user1 / user123`
+- 관리자: `admin / admin123`
+
+---
+
+## 핵심 구현 결정
+
+### 1. 발표일 기준 상태 공개 제어
+
+**문제**: 발표 전에 선정/탈락 결과가 노출되면 안 됨
+
+**해결**:
+```typescript
+// 서버에서만 날짜 비교 수행
+const isAnnouncementPassed = new Date() >= new Date(meeting.announcementAt);
+
+// 발표 전에는 PENDING 외 상태 숨김
+const visibleStatus = isAnnouncementPassed || status === 'PENDING'
+  ? status
+  : null;
 ```
 
-### 5. 접속 및 테스트
+- 클라이언트 시간 조작 불가능 (서버 시간 기준)
+- API 응답 자체에서 상태 제외
+- 프론트엔드는 서버가 준 값만 렌더링
 
-1. **프론트엔드**: http://localhost:3000
-   - 모임 목록 확인
-   - 모임 신청하기 (상단에서 이름 입력)
-   - 내 신청 결과 보기
-   - 관리자 페이지 (/admin)
+### 2. 동시성 제어 (정원 초과 방지)
 
-2. **백엔드 API**: http://localhost:4000/api
-   - 자동으로 데이터베이스 테이블 생성
-   - 모든 API 엔드포인트 활성화
+**문제**: 여러 관리자가 동시에 선정 처리 시 정원 초과 가능
 
----
-
-## 기술 스택
-
-### 백엔드
-- **NestJS** ^11.0.1 - Progressive Node.js Framework
-- **TypeORM** ^0.3.28 - ORM
-- **SQLite** (better-sqlite3) - 데이터베이스
-- **class-validator** - DTO 검증
-
-### 프론트엔드
-- **Next.js** 16.1.6 (App Router)
-- **React** 19.2.3
-- **TypeScript** 5.x
-- **TanStack Query** (React Query) - 서버 상태 관리
-- **Axios** - HTTP 클라이언트
-- **Tailwind CSS** v4 - 스타일링
-- **shadcn/ui** - UI 컴포넌트
-- **Sonner** - Toast 알림
-- **Framer Motion** - 애니메이션
-- **next-themes** - 다크모드
-
-### 개발 도구
-- **pnpm** - 모노레포 패키지 관리
-- **ESLint** - 코드 품질 검사
-- **Prettier** - 코드 포맷팅
-
----
-
-## 주요 기능
-
-### ✅ 사용자 기능
-
-1. **모임 목록 조회**
-   - 현재 모집 중인 모임 확인
-   - 모임 유형별 배지 (독서, 운동, 기록, 영어)
-   - 신청 가능 여부 실시간 표시
-   - 신청자 수 / 모집 정원 표시
-
-2. **모임 상세 조회**
-   - 모임 제목, 설명, 발표일 확인
-   - 본인 신청 상태 확인
-   - 신청 가능 여부 판단
-
-3. **모임 신청**
-   - 이름 입력 후 모임 신청
-   - 중복 신청 방지
-   - 발표일 이후 신청 불가
-   - 신청 성공 시 Confetti 효과 🎉
-
-4. **내 신청 결과 조회**
-   - 신청한 모임 목록 확인
-   - **발표일 이전**: PENDING 상태만 표시
-   - **발표일 이후**: 선정/탈락 결과 확인
-
-### ✅ 관리자 기능
-
-1. **모임 생성**
-   - 모임 유형 선택 (독서, 운동, 기록, 영어)
-   - 제목, 설명 입력
-   - 모집 정원 설정
-   - 발표일 지정
-
-2. **모임 목록 관리**
-   - 전체 모임 통계 확인
-   - 신청자 수, 선정/탈락/대기 인원 표시
-
-3. **신청자 관리**
-   - 모임별 신청자 목록 조회
-   - 신청자 정보 확인 (이름, 신청일)
-
-4. **선정/탈락 처리**
-   - **발표일 이후에만** 처리 가능
-   - PENDING → SELECTED/REJECTED
-   - 모집 정원 초과 방지
-   - Optimistic UI (즉시 반영)
-
-### ✅ UI/UX 개선 사항
-
-1. **다크모드 지원**
-   - 시스템 설정 자동 감지
-   - Sun/Moon 토글 버튼
-   - 키보드 단축키: `Cmd/Ctrl + Shift + D`
-
-2. **애니메이션**
-   - Framer Motion 기반 부드러운 전환
-   - 카드 Hover 효과
-   - Fade-in / Slide-up 애니메이션
-
-3. **마이크로 인터랙션**
-   - 신청 성공 시 Confetti 효과
-   - Toast 알림 (Sonner)
-   - 로딩 상태 표시
-
-4. **접근성**
-   - 키보드 단축키 지원
-   - Skip to Content 링크
-   - WCAG 2.1 AA 준수
-   - 스크린 리더 최적화
-
-5. **에러 핸들링**
-   - 자동 재시도 (지수 백오프: 1초, 2초, 4초)
-   - 상황별 구체적 에러 메시지 (15가지)
-   - 네트워크 오류 감지
-
----
-
-## 구현 중 주요 고민 사항 및 해결 방법
-
-### 1. 서버 시간 기준 날짜 처리
-
-**문제:** 클라이언트 시간을 신뢰할 수 없음 (시간 조작 가능)
-
-**해결:**
+**해결**:
 ```typescript
-// 모든 날짜 비교는 서버 시간 기준
-const now = new Date(); // 서버의 현재 시간
-const announcementAt = new Date(meeting.announcementAt);
-const isAnnouncementPassed = now >= announcementAt;
-```
+@Transaction('SERIALIZABLE')
+async updateApplicationStatus(...) {
+  // 1. 현재 선정 인원 확인
+  const selectedCount = await this.countSelected(meetingId);
 
-- UTC로 데이터베이스 저장
-- 서버에서만 발표일 이전/이후 판단
-- 클라이언트는 ISO 8601 문자열로 받아서 표시만
-
-### 2. 발표 전 선정 결과 숨김
-
-**문제:** 발표일 이전에 선정 결과가 노출되면 안 됨
-
-**해결:**
-```typescript
-// 발표 전에는 PENDING만 표시
-let myApplicationStatus = null;
-if (myApplication) {
-  if (isAnnouncementPassed || myApplication.status === ApplicationStatus.PENDING) {
-    myApplicationStatus = myApplication.status;
+  // 2. 정원 초과 체크
+  if (selectedCount >= capacity) {
+    throw new BadRequestException('정원 초과');
   }
+
+  // 3. 상태 변경
+  application.status = SELECTED;
 }
 ```
 
-- 백엔드에서 발표일 체크
-- 발표 전에는 SELECTED/REJECTED 상태를 응답에 포함하지 않음
-- 프론트엔드는 서버 응답을 그대로 표시
+- **SERIALIZABLE 격리 수준**: 트랜잭션 직렬화
+- 정원 체크와 상태 변경을 원자적으로 처리
+- 동시 요청도 안전하게 처리
 
-### 3. 중복 신청 방지
+### 3. 중복 신청 방지 (DB 제약)
 
-**문제:** 같은 모임에 여러 번 신청 가능성
+**문제**: 같은 사용자가 같은 모임에 여러 번 신청
 
-**해결:**
-- **DB 레벨**: `UNIQUE INDEX(meetingId, applicantId)`
-- **서비스 레벨**: 명시적 검증
+**해결**:
 ```typescript
-const existingApplication = await this.applicationRepository.findOne({
-  where: { meetingId, applicantId: dto.applicantId },
-});
-if (existingApplication) {
-  throw new ConflictException("이미 신청한 모임입니다.");
+// Entity 레벨: Unique Index
+@Index(['meetingId', 'userId'], { unique: true })
+export class Application { ... }
+
+// Service 레벨: 명시적 검증
+const existing = await this.findOne({ meetingId, userId });
+if (existing) {
+  throw new ConflictException('이미 신청한 모임입니다');
 }
 ```
 
-### 4. 프론트엔드 상태 관리
+- DB 제약으로 1차 방어
+- 서비스 로직으로 2차 검증
+- 프론트엔드는 UX 개선용 체크만
 
-**문제:** 서버 상태와 클라이언트 상태 동기화
+### 4. 상태 전이 규칙 강제
 
-**해결:**
-- **React Query** 도입
-  - 자동 캐싱 (5분)
-  - 자동 재시도 (실패 시)
-  - Optimistic UI (즉시 반영)
-  - 에러 핸들링 통합
+**문제**: 임의의 상태 변경 방지 필요
 
+**해결**:
 ```typescript
-export function useApplyToMeeting() {
-  return useMutation({
-    mutationFn: (data) => meetingsApiClient.applyToMeeting(data),
-    onSuccess: () => {
-      toast.success("모임 신청이 완료되었습니다!");
-      celebrateSuccess(); // 🎉
-      queryClient.invalidateQueries({ queryKey: meetingKeys.all });
-    },
-    onError: (error) => {
-      const message = getErrorMessage(error, "신청 중 오류가 발생했습니다.");
-      toast.error(message);
-    },
-  });
-}
-```
-
-### 5. 선정/탈락 처리 제약 조건
-
-**문제:** 발표일 이전 처리, 정원 초과, 상태 전이 검증 필요
-
-**해결:**
-```typescript
-// 1. 발표일 체크
-if (now < announcementAt) {
-  throw new BadRequestException("발표일 이전에는 선정/탈락 처리를 할 수 없습니다.");
-}
-
-// 2. 상태 전이 검증 (PENDING만 변경 가능)
+// PENDING → SELECTED/REJECTED만 허용
 if (application.status !== ApplicationStatus.PENDING) {
-  throw new BadRequestException("이미 처리된 신청입니다.");
+  throw new BadRequestException('PENDING 상태만 변경 가능');
 }
 
-// 3. 정원 초과 방지
-if (dto.status === ApplicationStatus.SELECTED) {
-  const selectedCount = await this.applicationRepository.count({
-    where: { meetingId, status: ApplicationStatus.SELECTED },
-  });
-  if (selectedCount >= meeting.capacity) {
-    throw new BadRequestException(`모집 정원이 이미 초과되었습니다.`);
-  }
+// 발표일 체크
+if (new Date() < announcementAt) {
+  throw new BadRequestException('발표일 이후에만 처리 가능');
 }
 ```
 
-### 6. 모노레포 구조 선택
+- 상태 전이 규칙을 코드로 명시
+- 유효하지 않은 전이 차단
 
-**문제:** 백엔드와 프론트엔드를 어떻게 관리할 것인가?
+---
 
-**해결:**
-- **pnpm workspace** 사용
-- 공통 타입을 `packages/shared`에 배치 (선택)
-- 각 앱의 독립성 유지하면서 의존성 공유
-- 코드 품질 도구 통합 (ESLint, Prettier)
+## 기술 스택 선택 근거
+
+### 백엔드: NestJS + TypeORM + SQLite
+
+- **NestJS**: DI 컨테이너로 서비스 분리 용이
+- **TypeORM**: 트랜잭션과 관계 관리가 명시적
+- **SQLite**: 로컬 실행 간편, 제약 조건 설정 가능
+
+### 프론트엔드: Next.js + React Query
+
+- **Next.js 16 (App Router)**: 서버 컴포넌트로 초기 렌더링 최적화
+- **React Query**: 서버 상태 캐싱 및 자동 동기화
+- **Tailwind CSS**: 빠른 스타일링
+
+### 모노레포: pnpm workspace
+
+- 백엔드/프론트엔드 의존성 공유
+- 공통 타입 정의 가능 (`packages/shared`)
+- 통합 빌드/배포 스크립트
 
 ---
 
@@ -307,151 +147,61 @@ if (dto.status === ApplicationStatus.SELECTED) {
 
 ### ERD
 
-```mermaid
-erDiagram
-    MEETINGS ||--o{ APPLICATIONS : has
-
-    MEETINGS {
-        int id PK
-        string type "BOOK | EXERCISE | RECORD | ENGLISH"
-        string title
-        text description
-        int capacity
-        datetime announcementAt
-        datetime createdAt
-        datetime updatedAt
-    }
-
-    APPLICATIONS {
-        int id PK
-        int meetingId FK
-        string applicantId
-        string applicantName
-        string status "PENDING | SELECTED | REJECTED"
-        datetime createdAt
-        datetime updatedAt
-    }
+```
+USERS (id, userId, name, role)
+  ↓ 1:N
+APPLICATIONS (id, meetingId, userId, status)
+  ↓ N:1
+MEETINGS (id, categoryId, title, capacity, announcementAt)
+  ↓ N:1
+MEETING_CATEGORIES (id, key, label, isActive)
 ```
 
-### 테이블 상세
+### 주요 제약 조건
 
-#### meetings 테이블
-| Column | Type | Constraints | 설명 |
-|--------|------|-------------|------|
-| id | INTEGER | PRIMARY KEY AUTOINCREMENT | 모임 ID |
-| type | VARCHAR | CHECK(type IN (...)) NOT NULL | 모임 유형 |
-| title | TEXT | NOT NULL | 모임 제목 |
-| description | TEXT | NULLABLE | 모임 설명 |
-| capacity | INTEGER | NOT NULL | 모집 정원 |
-| announcementAt | DATETIME | NOT NULL | 발표일 |
-| createdAt | DATETIME | DEFAULT (datetime('now')) | 생성일 |
-| updatedAt | DATETIME | DEFAULT (datetime('now')) | 수정일 |
+```sql
+-- 중복 신청 방지
+UNIQUE INDEX (meetingId, userId)
 
-#### applications 테이블
-| Column | Type | Constraints | 설명 |
-|--------|------|-------------|------|
-| id | INTEGER | PRIMARY KEY AUTOINCREMENT | 신청 ID |
-| meetingId | INTEGER | FOREIGN KEY → meetings(id) ON DELETE CASCADE | 모임 ID |
-| applicantId | TEXT | NOT NULL | 신청자 ID |
-| applicantName | TEXT | NOT NULL | 신청자 이름 |
-| status | VARCHAR | CHECK(status IN (...)) DEFAULT 'PENDING' | 신청 상태 |
-| createdAt | DATETIME | DEFAULT (datetime('now')) | 신청일 |
-| updatedAt | DATETIME | DEFAULT (datetime('now')) | 수정일 |
+-- 참조 무결성
+FOREIGN KEY (meetingId) REFERENCES meetings(id) ON DELETE CASCADE
 
-**제약 조건:**
-- `UNIQUE INDEX(meetingId, applicantId)` - 중복 신청 방지
-- `FOREIGN KEY(meetingId) ON DELETE CASCADE` - 모임 삭제 시 신청도 삭제
-
----
-
-## API 명세
-
-### 사용자 API
-
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| GET | `/api/meetings?viewerId={id}` | 모임 목록 조회 |
-| GET | `/api/meetings/:id?viewerId={id}` | 모임 상세 조회 |
-| POST | `/api/meetings/:id/applications` | 모임 신청 |
-| GET | `/api/viewer/applications?viewerId={id}` | 내 신청 결과 조회 |
-
-### 관리자 API
-
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| POST | `/api/admin/meetings` | 모임 생성 |
-| GET | `/api/admin/meetings` | 모임 목록 조회 (통계 포함) |
-| GET | `/api/admin/meetings/:id` | 모임 상세 조회 (통계 포함) |
-| GET | `/api/admin/meetings/:id/applications` | 신청자 목록 조회 |
-| PATCH | `/api/admin/applications/:id/status` | 선정/탈락 처리 |
-
-### 응답 예시
-
-#### 모임 목록 조회
-```json
-GET /api/meetings?viewerId=user123
-
-[
-  {
-    "id": 1,
-    "type": "BOOK",
-    "title": "책 읽기 모임",
-    "description": "함께 책을 읽고 토론하는 모임입니다",
-    "capacity": 5,
-    "announcementAt": "2026-03-20T00:00:00.000Z",
-    "applicantCount": 3,
-    "canApply": true,
-    "myApplicationStatus": "PENDING"
-  }
-]
-```
-
-#### 모임 신청
-```json
-POST /api/meetings/1/applications
-{
-  "applicantId": "user123",
-  "applicantName": "김철수"
-}
-
-→ Response:
-{
-  "success": true,
-  "message": "모임 신청이 완료되었습니다.",
-  "applicationId": 1
-}
+-- 상태 검증
+CHECK (status IN ('PENDING', 'SELECTED', 'REJECTED'))
 ```
 
 ---
 
-## 코드 품질 관리
+## API 설계
 
-### ESLint + Prettier
+### 인증 방식: 세션 기반
 
-전체 프로젝트에 **ESLint**와 **Prettier**를 적용하여 코드 품질을 관리합니다.
+```typescript
+// 로그인 시 세션 생성
+@Post('/auth/login')
+async login(@Body() dto: LoginDto, @Session() session) {
+  const user = await this.authService.validateUser(dto);
+  session.userId = user.id;
+  session.role = user.role;
+  return { success: true };
+}
 
-```bash
-# 코드 자동 포맷팅
-pnpm format
-
-# Lint 검사
-pnpm lint
-
-# Lint + 자동 수정
-pnpm lint:fix
+// 가드로 권한 체크
+@UseGuards(AuthGuard)
+@Get('/meetings')
+async getMeetings(@CurrentUser() user: User) { ... }
 ```
 
-**설정 내용:**
-- **Prettier**: 들여쓰기 2칸, 큰따옴표, 세미콜론 사용
-- **ESLint**: TypeScript 권장 룰 + NestJS/Next.js 최적화
-- **통합**: ESLint와 Prettier 충돌 방지
+### 주요 엔드포인트
 
-### TypeScript
+**사용자 API**
+- `GET /api/meetings` - 모임 목록
+- `POST /api/meetings/:id/applications` - 신청
+- `GET /api/viewer/applications` - 내 신청 결과
 
-**strict 모드** 활성화로 타입 안정성 확보:
-- 모든 변수에 명시적 타입
-- any 사용 최소화 (경고 표시)
-- null/undefined 안전 처리
+**관리자 API**
+- `POST /api/admin/meetings` - 모임 생성
+- `PATCH /api/admin/applications/:id/status` - 선정/탈락
 
 ---
 
@@ -460,97 +210,301 @@ pnpm lint:fix
 ```
 fullstack-assignment-main/
 ├── apps/
-│   ├── server/              # 백엔드 (NestJS)
+│   ├── server/                    # NestJS
 │   │   ├── src/
-│   │   │   ├── entity/      # TypeORM Entity (Meeting, Application)
-│   │   │   ├── dto/         # DTO (CreateMeeting, ApplyToMeeting 등)
+│   │   │   ├── entity/            # Meeting, Application, User
 │   │   │   ├── modules/
-│   │   │   │   ├── meetings/  # 사용자 API
-│   │   │   │   └── admin/     # 관리자 API
-│   │   │   └── config/      # TypeORM, 환경 변수 설정
-│   │   └── database.sqlite  # SQLite 데이터베이스 (자동 생성)
+│   │   │   │   ├── auth/          # 인증 (세션, 가드)
+│   │   │   │   ├── meetings/      # 사용자 API
+│   │   │   │   └── admin/         # 관리자 API
+│   │   │   └── config/            # TypeORM 설정
+│   │   └── data/assignment.sqlite # SQLite DB
 │   │
-│   └── web/                 # 프론트엔드 (Next.js)
-│       ├── app/             # Next.js App Router
-│       │   ├── page.tsx           # 모임 목록
-│       │   ├── meetings/[id]/     # 모임 상세
-│       │   ├── my/                # 내 신청 결과
-│       │   └── admin/             # 관리자 페이지
-│       ├── components/      # UI 컴포넌트
-│       ├── lib/
-│       │   ├── api-client/  # API Client (Axios)
-│       │   ├── react-query/ # React Query hooks
-│       │   └── types.ts     # TypeScript 타입 정의
-│       └── ...
+│   └── web/                       # Next.js
+│       ├── app/                   # App Router
+│       ├── components/            # UI 컴포넌트
+│       └── lib/
+│           ├── api-client/        # Axios 기반 API 클라이언트
+│           └── react-query/       # Query hooks
 │
-├── .eslintrc.json          # ESLint 설정
-├── .prettierrc             # Prettier 설정
-└── README.md
+└── packages/
+    └── shared/                   # 공통 타입 (선택)
 ```
 
 ---
 
-## 과제 소요 시간
+## 기술적 의사결정 및 트레이드오프
+
+### SQLite vs PostgreSQL
+
+**선택**: SQLite
+
+**이유**:
+- 로컬 실행 간편성 (별도 DB 서버 불필요)
+- 파일 기반으로 프로젝트에 포함 가능
+- 제약 조건(UNIQUE, FK, CHECK) 모두 지원
+
+**트레이드오프**:
+- 동시 쓰기 제한 (SERIALIZABLE 시 성능 저하)
+- 대규모 트래픽에는 부적합
+- 복잡한 쿼리 최적화 제한적
+
+**실무 고려사항**:
+- TypeORM 사용으로 PostgreSQL 전환 시 마이그레이션 용이
+- 프로덕션에서는 PostgreSQL + Connection Pooling 권장
+
+### 세션 vs JWT
+
+**선택**: 세션 기반 인증
+
+**이유**:
+- 즉시 로그아웃 가능 (서버에서 세션 삭제)
+- 상태 관리가 직관적
+- XSS 공격 시에도 토큰 탈취 불가능
+
+**트레이드오프**:
+- 서버 메모리 사용 (세션 저장)
+- 수평 확장 시 세션 공유 필요
+- 모바일 앱에는 부적합
+
+**실무 고려사항**:
+- Redis Session Store로 확장 가능
+- 마이크로서비스 환경에서는 JWT 고려
+
+### SERIALIZABLE vs Optimistic Locking
+
+**선택**: SERIALIZABLE 트랜잭션
+
+**이유**:
+- 정원 초과 방지를 DB 레벨에서 보장
+- 구현이 명확하고 안전
+- 관리자 동시 작업이 빈번하지 않다고 가정
+
+**트레이드오프**:
+- 동시 요청 시 성능 저하
+- 트랜잭션 충돌 시 재시도 필요
+- SQLite는 락 경합이 심함
+
+**실무 고려사항**:
+- Optimistic Locking (version 컬럼) 대안
+- PostgreSQL의 Row-level Locking 활용
+
+---
+
+## 현재 구현의 제한사항
+
+### 1. 동시성 처리의 성능 저하
+
+**문제**: SERIALIZABLE 격리 수준은 안전하지만, 동시 요청 시 성능이 크게 저하됩니다.
+
+**현실적 해결책**:
+```typescript
+// Optimistic Locking 방식
+@Entity()
+class Application {
+  @VersionColumn()
+  version: number;
+}
+
+// 업데이트 시 version 체크
+await manager.update(Application,
+  { id, version },
+  { status: SELECTED, version: version + 1 }
+);
+```
+
+### 2. 대규모 트래픽 미대응
+
+**문제**: 모임이 1000개 이상일 때 목록 조회가 느려집니다.
+
+**현실적 해결책**:
+- **Cursor 기반 페이지네이션**: Offset 대신 마지막 ID 기준 조회
+- **무한 스크롤**: React Query의 `useInfiniteQuery`
+- **인덱스 추가**: `CREATE INDEX idx_meetings_created_at ON meetings(createdAt DESC)`
+
+### 3. 실시간 업데이트 부재
+
+**문제**: 관리자가 선정 처리해도 사용자는 새로고침해야 결과를 볼 수 있습니다.
+
+**현실적 해결책**:
+- **SSE (Server-Sent Events)**: 발표일 이후 자동 갱신
+- **React Query의 refetchInterval**: 주기적 폴링 (1분마다)
+- **WebSocket**: 양방향 실시간 통신 (오버엔지니어링 가능성)
+
+### 4. 에러 복구 전략 부족
+
+**문제**: 트랜잭션 실패 시 단순 에러 반환만 수행합니다.
+
+**현실적 해결책**:
+```typescript
+// 지수 백오프 재시도
+async function retryWithBackoff(fn, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      await sleep(Math.pow(2, i) * 1000);
+    }
+  }
+}
+```
+
+---
+
+## 향후 개선 방향
+
+### 확장 가능성을 고려한 설계
+
+**1. 신청 취소 API**
+```typescript
+// DELETE /api/meetings/:id/applications/:id
+// 제약: 발표일 이전만 가능, 본인 신청만 취소 가능
+async cancelApplication(meetingId: number, userId: number) {
+  if (isAnnouncementPassed(meeting.announcementAt)) {
+    throw new BadRequestException('발표일 이후에는 취소 불가');
+  }
+  // 상태 전이: PENDING → CANCELLED
+}
+```
+
+**2. 일괄 선정 처리**
+```typescript
+// PATCH /api/admin/meetings/:id/applications/batch
+async batchUpdateStatus(
+  meetingId: number,
+  applicationIds: number[],
+  status: ApplicationStatus
+) {
+  // 트랜잭션으로 묶어서 정원 체크 후 일괄 처리
+}
+```
+
+**3. 알림 시스템**
+```typescript
+// 이벤트 기반 아키텍처로 분리
+@EventEmitter('application.selected')
+async notifySelected(application: Application) {
+  // 이메일, 푸시, SMS 등 다양한 채널로 발송
+  // NestJS의 EventEmitter2 활용
+}
+```
+
+### 성능 최적화
+
+**1. 모임 목록 캐싱**
+```typescript
+// Redis 캐싱 (발표일 이후 결과는 변하지 않음)
+@Cacheable({ ttl: 300, key: 'meeting-list' })
+async findAll() { ... }
+```
+
+**2. DB 인덱스 추가**
+```sql
+-- 발표일 + 상태 복합 인덱스
+CREATE INDEX idx_applications_announcement_status
+ON applications(meetingId, status)
+WHERE announcementAt > NOW();
+
+-- 신청자별 모임 조회 최적화
+CREATE INDEX idx_applications_user_created
+ON applications(userId, createdAt DESC);
+```
+
+**3. N+1 쿼리 해결**
+```typescript
+// Eager Loading 또는 DataLoader 패턴
+@ManyToOne(() => Meeting, { eager: true })
+meeting: Meeting;
+```
+
+### 개발 경험 개선
+
+**1. API 문서 자동화**
+```typescript
+// Swagger 통합
+@ApiOperation({ summary: '모임 신청' })
+@ApiResponse({ status: 201, description: '신청 완료' })
+@Post(':id/applications')
+async applyToMeeting(...) { ... }
+```
+
+**2. E2E 테스트 확대**
+```typescript
+describe('발표일 기준 상태 공개', () => {
+  it('발표 전에는 선정 결과를 볼 수 없어야 함', async () => {
+    // 발표일이 미래인 모임 생성
+    // 관리자가 선정 처리
+    // 사용자 조회 시 status: null 확인
+  });
+});
+```
+
+---
+
+## 구현하지 않은 것 (의도적)
+
+### 1. 신청 취소
+- 과제 요구사항에 없음
+- 취소 정책이 모호 (발표 전? 후? 정원 재계산?)
+- 상태 전이 복잡도 증가 (PENDING → CANCELLED)
+- 서버 API는 확장 가능하게 설계 완료
+
+### 2. 이메일/푸시 알림
+- 운영 요소이지 핵심 도메인 로직 아님
+- 이벤트 기반으로 분리 가능
+- 외부 서비스 의존성 추가 (SendGrid, FCM)
+
+### 3. 페이지네이션
+- 모임 수가 많지 않다고 가정 (< 100개)
+- 필요 시 Query Builder로 쉽게 추가 가능
+- 프론트엔드는 무한 스크롤 준비 완료 (React Query)
+
+---
+
+## 테스트
+
+```bash
+# E2E 테스트 (트랜잭션 격리 수준)
+cd apps/server && pnpm test:e2e
+
+# Lint + Format
+pnpm lint
+pnpm format
+```
+
+---
+
+## 개발 일정
 
 **총 소요 시간: 약 4시간**
 
-### 시간 분배
-- **설계 및 기획**: 30분
-  - ERD 설계
-  - API 명세 작성
-  - 기술 스택 선정
-
-- **백엔드 구현**: 1시간 30분
-  - Entity 및 DTO 작성
-  - Service 비즈니스 로직 구현
-  - Controller 및 API 엔드포인트
-  - 데이터베이스 설정
-
-- **프론트엔드 구현**: 1시간 30분
-  - UI 컴포넌트 작성 (shadcn/ui)
-  - API Client 및 React Query 통합
-  - 페이지 구현 (목록, 상세, 내 신청, 관리자)
-
-- **UI/UX 개선**: 30분
-  - 다크모드 추가
-  - 애니메이션 및 Confetti 효과
-  - 접근성 향상 (키보드 단축키)
-
-- **코드 품질 및 문서화**: 30분
-  - ESLint, Prettier 설정
-  - README 작성
+- 설계 (30분): ERD, API 명세, 상태 전이도
+- 백엔드 (1시간 30분): Entity, Service, 트랜잭션 처리
+- 프론트엔드 (1시간 30분): React Query 연동, UI 구현
+- 코드 정리 (30분): ESLint, Prettier, 문서화
 
 ---
 
 ## 추가 구현 사항 (과제 범위 외)
 
-과제 요구사항을 초과하여 다음과 같은 기능을 추가로 구현했습니다:
+- ✅ 다크모드 (next-themes)
+- ✅ React Query 상태 관리
+- ✅ ESLint + Prettier
+- ✅ 키보드 단축키
 
-### UI/UX 개선
-- ✅ **다크모드 지원** (next-themes)
-- ✅ **애니메이션 강화** (Framer Motion)
-- ✅ **마이크로 인터랙션** (Confetti, Ripple)
-- ✅ **Progressive Loading** (Skeleton, Optimistic UI)
-- ✅ **에러 복구 강화** (자동 재시도, 구체적 에러 메시지)
-- ✅ **접근성 완성** (키보드 단축키, 스크린 리더 최적화)
-
-### 개발 경험 향상
-- ✅ **ESLint + Prettier** 통합
-- ✅ **TypeScript strict 모드**
-- ✅ **모노레포 구조** (pnpm workspace)
-- ✅ **API Client 패턴** (Axios + React Query)
+**의도**: 실무 프로젝트처럼 보이도록 최소한의 DX 개선만 추가
 
 ---
 
-## 참고 문서
+## 상세 문서
 
-- 📄 [과제 설계사항.md](./과제%20설계사항.md) - 상세 설계 문서
-- 📄 [백엔드-구현-완료-보고서.md](./백엔드-구현-완료-보고서.md) - 백엔드 기술 문서
-- 📄 [UI-UX-개선-완료-보고서.md](./UI-UX-개선-완료-보고서.md) - 프론트엔드 개선 내역
-- 📄 [ESLint-Prettier-설정-완료.md](./ESLint-Prettier-설정-완료.md) - 코드 품질 도구 설정
+- [과제 설계사항](./docs/design.md) - ERD, API 명세 상세
+- [백엔드 구현](./docs/backend.md) - 트랜잭션, 에러 처리
+- [UI/UX 개선](./docs/ui-ux.md) - 프론트엔드 개선 사항
+- [코드 품질](./docs/code-quality.md) - ESLint, Prettier 설정
 
 ---
 
 **구현 완료일**: 2026-03-15
-**버전**: 1.0.0
-**상태**: ✅ 모든 필수 기능 구현 완료
+**실행 환경**: Node.js 22, pnpm 9

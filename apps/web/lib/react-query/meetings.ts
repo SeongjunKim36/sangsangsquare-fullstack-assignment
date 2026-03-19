@@ -5,6 +5,7 @@ import { meetingsApiClient } from "../api-client/meetings";
 import { toast } from "sonner";
 import { celebrateSuccess } from "../confetti";
 import { getErrorMessage } from "../error-handler";
+import { QUERY_STALE_TIME } from "../constants";
 
 export const meetingKeys = {
   all: ["meetings"] as const,
@@ -22,7 +23,7 @@ export function useMeetings(viewerId?: string) {
   return useQuery({
     queryKey: meetingKeys.list(viewerId),
     queryFn: () => meetingsApiClient.getMeetings(viewerId),
-    staleTime: 1000 * 60 * 5, // 5분
+    staleTime: QUERY_STALE_TIME,
   });
 }
 
@@ -34,7 +35,7 @@ export function useMeetingDetail(meetingId: number, viewerId?: string) {
     queryKey: meetingKeys.detail(meetingId, viewerId),
     queryFn: () => meetingsApiClient.getMeetingDetail(meetingId, viewerId),
     enabled: Number.isFinite(meetingId) && meetingId > 0,
-    staleTime: 1000 * 60 * 5, // 5분
+    staleTime: QUERY_STALE_TIME,
   });
 }
 
@@ -46,7 +47,7 @@ export function useViewerApplications(viewerId?: string) {
     queryKey: meetingKeys.viewerApplications(viewerId),
     queryFn: () => meetingsApiClient.getViewerApplications(viewerId!),
     enabled: Boolean(viewerId),
-    staleTime: 1000 * 60 * 5, // 5분
+    staleTime: QUERY_STALE_TIME,
   });
 }
 

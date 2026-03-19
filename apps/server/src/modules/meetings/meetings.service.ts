@@ -7,8 +7,8 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, Repository } from "typeorm";
 import { Meeting, Application, ApplicationStatus } from "../../entity";
-import { ApplyToMeetingDto } from "../../dto";
 import { MeetingMapper } from "./mappers/meeting.mapper";
+import { isAnnouncementPassed } from "../../util";
 
 @Injectable()
 export class MeetingsService {
@@ -38,9 +38,9 @@ export class MeetingsService {
 
     return meetings.map((meeting) => {
       const myApplication = myApplicationsMap.get(meeting.id);
-      const isAnnouncementPassed = this.isAnnouncementPassed(meeting.announcementAt);
-      const canApply = !isAnnouncementPassed && !myApplication;
-      const myApplicationStatus = this.getApplicationStatus(myApplication, isAnnouncementPassed);
+      const isPassed = isAnnouncementPassed(meeting.announcementAt);
+      const canApply = !isPassed && !myApplication;
+      const myApplicationStatus = this.getApplicationStatus(myApplication, isPassed);
 
       return this.meetingMapper.toUserListResponse(meeting, canApply, myApplicationStatus);
     });
@@ -72,9 +72,9 @@ export class MeetingsService {
       relations: ["user"],
     });
 
-    const isAnnouncementPassed = this.isAnnouncementPassed(meeting.announcementAt);
-    const canApply = !isAnnouncementPassed && !myApplication;
-    const myApplicationStatus = this.getApplicationStatus(myApplication, isAnnouncementPassed);
+    const isPassed = isAnnouncementPassed(meeting.announcementAt);
+    const canApply = !isPassed && !myApplication;
+    const myApplicationStatus = this.getApplicationStatus(myApplication, isPassed);
 
     return this.meetingMapper.toUserDetailResponse(
       meeting,
@@ -95,7 +95,7 @@ export class MeetingsService {
         throw new NotFoundException("모임을 찾을 수 없습니다.");
       }
 
-      if (this.isAnnouncementPassed(meeting.announcementAt)) {
+      if (isAnnouncementPassed(meeting.announcementAt)) {
         throw new BadRequestException("발표일이 지난 모임에는 신청할 수 없습니다.");
       }
 
@@ -137,17 +137,14 @@ export class MeetingsService {
     });
 
     return applications.map((app) => {
-      const isAnnouncementPassed = this.isAnnouncementPassed(app.meeting.announcementAt);
-      const visibleStatus = isAnnouncementPassed || app.status === ApplicationStatus.PENDING
-        ? app.status
-        : ApplicationStatus.PENDING;
+      const isPassed = isAnnouncementPassed(app.meeting.announcementAt);
+      const visibleStatus =
+        isPassed || app.status === ApplicationStatus.PENDING
+          ? app.status
+          : ApplicationStatus.PENDING;
 
       return this.meetingMapper.toMyApplicationResponse(app, visibleStatus);
     });
-  }
-
-  private isAnnouncementPassed(announcementAt: Date): boolean {
-    return new Date() >= new Date(announcementAt);
   }
 
   private getApplicationStatus(

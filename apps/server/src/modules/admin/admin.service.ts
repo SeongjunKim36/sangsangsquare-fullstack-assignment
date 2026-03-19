@@ -4,6 +4,7 @@ import { DataSource, Repository } from "typeorm";
 import { Meeting, Application, ApplicationStatus, MeetingCategory } from "../../entity";
 import { CreateMeetingDto, UpdateApplicationStatusDto } from "../../dto";
 import { MeetingMapper } from "../meetings/mappers/meeting.mapper";
+import { getCurrentServerTime } from "../../util";
 
 @Injectable()
 export class AdminService {
@@ -104,7 +105,11 @@ export class AdminService {
   /**
    * 신청자 상태 변경 (선정/탈락)
    */
-  async updateApplicationStatus(meetingId: number, applicationId: number, dto: UpdateApplicationStatusDto) {
+  async updateApplicationStatus(
+    meetingId: number,
+    applicationId: number,
+    dto: UpdateApplicationStatusDto
+  ) {
     return await this.dataSource.transaction("SERIALIZABLE", async (manager) => {
       const application = await manager.findOne(Application, {
         where: { id: applicationId, meetingId },
@@ -115,7 +120,7 @@ export class AdminService {
         throw new NotFoundException("신청을 찾을 수 없습니다.");
       }
 
-      const now = new Date();
+      const now = getCurrentServerTime();
       const announcementAt = new Date(application.meeting.announcementAt);
 
       if (now < announcementAt) {

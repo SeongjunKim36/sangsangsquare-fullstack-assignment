@@ -5,6 +5,7 @@ import { adminApiClient } from "../api-client/admin";
 import { CreateMeetingForm } from "../types";
 import { toast } from "sonner";
 import { getErrorMessage } from "../error-handler";
+import { QUERY_STALE_TIME } from "../constants";
 
 export const adminKeys = {
   all: ["admin"] as const,
@@ -22,7 +23,7 @@ export function useAdminMeetings() {
   return useQuery({
     queryKey: adminKeys.meetings(),
     queryFn: () => adminApiClient.getMeetings(),
-    staleTime: 1000 * 60 * 5, // 5분
+    staleTime: QUERY_STALE_TIME,
   });
 }
 
@@ -34,7 +35,7 @@ export function useAdminMeetingApplications(meetingId?: number) {
     queryKey: adminKeys.applications(meetingId!),
     queryFn: () => adminApiClient.getMeetingApplications(meetingId!),
     enabled: Boolean(meetingId),
-    staleTime: 1000 * 60, // 1분
+    staleTime: QUERY_STALE_TIME / 5, // 1분 (관리자 페이지는 더 자주 갱신)
   });
 }
 

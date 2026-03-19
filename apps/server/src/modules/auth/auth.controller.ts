@@ -13,12 +13,7 @@ export class AuthController {
     @Body() body: { userId: string; password: string; name: string; role?: UserRole },
     @Session() session: Record<string, any>
   ) {
-    const user = await this.authService.register(
-      body.userId,
-      body.password,
-      body.name,
-      body.role
-    );
+    const user = await this.authService.register(body.userId, body.password, body.name, body.role);
 
     session.userId = user.id;
 
