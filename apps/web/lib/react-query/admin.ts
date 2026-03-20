@@ -7,35 +7,52 @@ import { toast } from "sonner";
 import { getErrorMessage } from "../error-handler";
 import { QUERY_STALE_TIME } from "../constants";
 import { meetingKeys } from "./meetings";
+import { useAnnouncementInvalidation } from "../use-announcement-invalidation";
 
 export const adminKeys = {
   all: ["admin"] as const,
-  meetings: () => [...adminKeys.all, "meetings"] as const,
-  meetingDetail: (meetingId: number) => [...adminKeys.all, "meeting", meetingId] as const,
-  applications: (meetingId: number) => [...adminKeys.all, "applications", meetingId] as const,
+  meetings: (userId: number | null) => [...adminKeys.all, "meetings", userId] as const,
+  meetingDetail: (meetingId: number, userId: number | null) =>
+    [...adminKeys.all, "meeting", userId, meetingId] as const,
+  applications: (meetingId: number | null, userId: number | null) =>
+    [...adminKeys.all, "applications", userId, meetingId] as const,
 };
 
 /**
  * 관리자 모임 목록 조회
  */
-export function useAdminMeetings(enabled = true) {
-  return useQuery({
-    queryKey: adminKeys.meetings(),
+export function useAdminMeetings(userId: number | null, enabled = true) {
+  const query = useQuery({
+    queryKey: adminKeys.meetings(userId),
     queryFn: () => adminApiClient.getMeetings(),
-    enabled,
+    enabled: enabled && userId !== null,
     staleTime: QUERY_STALE_TIME,
+    refetchOnWindowFocus: true,
   });
+
+  useAnnouncementInvalidation({
+    enabled: enabled && userId !== null,
+    announcementAtValues: (query.data ?? []).map((meeting) => meeting.announcementAt),
+    queryKeys: [adminKeys.all],
+  });
+
+  return query;
 }
 
 /**
  * 모임 신청자 목록 조회
  */
-export function useAdminMeetingApplications(meetingId?: number, enabled = true) {
+export function useAdminMeetingApplications(
+  meetingId: number | null,
+  userId: number | null,
+  enabled = true
+) {
   return useQuery({
-    queryKey: adminKeys.applications(meetingId!),
-    queryFn: () => adminApiClient.getMeetingApplications(meetingId!),
-    enabled: enabled && Boolean(meetingId),
+    queryKey: adminKeys.applications(meetingId, userId),
+    queryFn: () => adminApiClient.getMeetingApplications(meetingId as number),
+    enabled: enabled && userId !== null && meetingId !== null,
     staleTime: QUERY_STALE_TIME / 5, // 1분 (관리자 페이지는 더 자주 갱신)
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -49,8 +66,8 @@ export function useCreateMeeting() {
     mutationFn: (data: CreateMeetingForm) => adminApiClient.createMeeting(data),
     onSuccess: () => {
       toast.success("모임이 생성되었습니다.");
-      void queryClient.invalidateQueries({ queryKey: adminKeys.meetings() });
-      void queryClient.invalidateQueries({ queryKey: ["meetings"] });
+      void queryClient.invalidateQueries({ queryKey: adminKeys.all });
+      void queryClient.invalidateQueries({ queryKey: meetingKeys.all });
     },
     onError: (error: unknown) => {
       const message = getErrorMessage(error, "모임 생성 중 오류가 발생했습니다.");
@@ -89,7 +106,6 @@ export function useUpdateApplicationStatus() {
       });
       void queryClient.invalidateQueries({ queryKey: adminKeys.all });
       void queryClient.invalidateQueries({ queryKey: meetingKeys.all });
-      void queryClient.invalidateQueries({ queryKey: meetingKeys.myApplications() });
     },
     onError: (error: unknown, { applicationId }) => {
       const message = getErrorMessage(error, "상태 변경 중 오류가 발생했습니다.");

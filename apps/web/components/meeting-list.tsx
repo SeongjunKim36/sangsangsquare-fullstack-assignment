@@ -13,12 +13,14 @@ import { AlertCircle, RefreshCw, CalendarOff } from "lucide-react";
 
 export function MeetingList() {
   const currentUserQuery = useCurrentUser();
+  const currentUser = currentUserQuery.data;
+  const currentUserId = currentUser?.id ?? null;
   const {
     data: meetings = [],
     isLoading,
     error,
     refetch,
-  } = useMeetings(Boolean(currentUserQuery.data));
+  } = useMeetings(currentUserId);
 
   if (currentUserQuery.isLoading || isLoading) {
     return <MeetingCardSkeletonGrid />;
@@ -43,7 +45,7 @@ export function MeetingList() {
     );
   }
 
-  if (!currentUserQuery.data) {
+  if (!currentUser) {
     return <LoginRequiredState description="모임 목록은 로그인 후 확인할 수 있습니다." />;
   }
 

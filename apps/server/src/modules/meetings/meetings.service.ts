@@ -5,10 +5,10 @@ import {
   ConflictException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { QueryFailedError, Repository } from "typeorm";
+import { MoreThan, QueryFailedError, Repository } from "typeorm";
 import { Meeting, Application, ApplicationStatus } from "../../entity";
 import { MeetingMapper } from "./mappers/meeting.mapper";
-import { isAnnouncementPassed } from "../../util";
+import { getCurrentServerTime, isAnnouncementPassed } from "../../util";
 
 @Injectable()
 export class MeetingsService {
@@ -21,10 +21,12 @@ export class MeetingsService {
   ) {}
 
   async findAllForUser(userId: number) {
+    const now = getCurrentServerTime();
     const meetings = await this.meetingRepository.find({
-      relations: ["applications"],
+      where: { announcementAt: MoreThan(now) },
       order: { createdAt: "DESC" },
     });
+    const applicantCounts = await this.getApplicantCountMap(meetings.map((meeting) => meeting.id));
 
     const myApplicationsMap = await this.getMyApplicationsMapByUserId(userId);
 
@@ -33,13 +35,14 @@ export class MeetingsService {
       const isPassed = isAnnouncementPassed(meeting.announcementAt);
       const canApply = !isPassed && !myApplication;
       const myApplicationStatus = this.getApplicationStatus(myApplication, isPassed);
-      const applicantCount = meeting.applications?.length || 0;
+      const applicantCount = applicantCounts.get(meeting.id) || 0;
 
       return this.meetingMapper.toListResponse(
         meeting,
         applicantCount,
         canApply,
-        myApplicationStatus
+        myApplicationStatus,
+        isPassed
       );
     });
   }
@@ -47,7 +50,6 @@ export class MeetingsService {
   async findOneForUser(meetingId: number, userId: number) {
     const meeting = await this.meetingRepository.findOne({
       where: { id: meetingId },
-      relations: ["applications"],
     });
 
     if (!meeting) {
@@ -62,13 +64,16 @@ export class MeetingsService {
     const isPassed = isAnnouncementPassed(meeting.announcementAt);
     const canApply = !isPassed && !myApplication;
     const myApplicationStatus = this.getApplicationStatus(myApplication, isPassed);
-    const applicantCount = meeting.applications?.length || 0;
+    const applicantCount = await this.applicationRepository.count({
+      where: { meetingId },
+    });
 
     return this.meetingMapper.toDetailResponse(
       meeting,
       applicantCount,
       canApply,
       myApplicationStatus,
+      isPassed,
       myApplication,
       myApplication?.user.name
     );
@@ -129,7 +134,7 @@ export class MeetingsService {
           ? app.status
           : ApplicationStatus.PENDING;
 
-      return this.meetingMapper.toMyApplicationResponse(app, visibleStatus);
+      return this.meetingMapper.toMyApplicationResponse(app, visibleStatus, isPassed);
     });
   }
 
@@ -150,6 +155,22 @@ export class MeetingsService {
     });
 
     return new Map(myApplications.map((app) => [app.meetingId, app]));
+  }
+
+  private async getApplicantCountMap(meetingIds: number[]): Promise<Map<number, number>> {
+    if (meetingIds.length === 0) {
+      return new Map();
+    }
+
+    const rows = await this.applicationRepository
+      .createQueryBuilder("application")
+      .select("application.meetingId", "meetingId")
+      .addSelect("COUNT(*)", "applicantCount")
+      .where("application.meetingId IN (:...meetingIds)", { meetingIds })
+      .groupBy("application.meetingId")
+      .getRawMany<{ meetingId: string; applicantCount: string }>();
+
+    return new Map(rows.map((row) => [Number(row.meetingId), Number(row.applicantCount)]));
   }
 
   private isDuplicateApplicationError(error: unknown): boolean {

@@ -32,12 +32,17 @@ export class AdminService {
       throw new BadRequestException(`유효하지 않은 모임 종류입니다: ${dto.type}`);
     }
 
+    const announcementAt = new Date(dto.announcementAt);
+    if (announcementAt <= getCurrentServerTime()) {
+      throw new BadRequestException("발표일은 현재 시각 이후여야 합니다.");
+    }
+
     const meeting = this.meetingRepository.create({
       categoryId: category.id,
       title: dto.title,
       description: dto.description || null,
       capacity: dto.capacity,
-      announcementAt: new Date(dto.announcementAt),
+      announcementAt,
     });
 
     await this.meetingRepository.save(meeting);
@@ -54,27 +59,25 @@ export class AdminService {
    */
   async findAllMeetings() {
     const meetings = await this.meetingRepository.find({
-      relations: ["applications"],
       order: { createdAt: "DESC" },
     });
+    const statsMap = await this.getMeetingStatsMap(meetings.map((meeting) => meeting.id));
 
     return meetings.map((meeting) => {
-      const applicantCount = meeting.applications?.length || 0;
-      const selectedCount =
-        meeting.applications?.filter((app) => app.status === ApplicationStatus.SELECTED).length ||
-        0;
-      const rejectedCount =
-        meeting.applications?.filter((app) => app.status === ApplicationStatus.REJECTED).length ||
-        0;
-      const pendingCount =
-        meeting.applications?.filter((app) => app.status === ApplicationStatus.PENDING).length || 0;
+      const stats = statsMap.get(meeting.id) || {
+        applicantCount: 0,
+        selectedCount: 0,
+        rejectedCount: 0,
+        pendingCount: 0,
+      };
 
       return this.meetingMapper.toAdminResponse(
         meeting,
-        applicantCount,
-        selectedCount,
-        rejectedCount,
-        pendingCount
+        stats.applicantCount,
+        stats.selectedCount,
+        stats.rejectedCount,
+        stats.pendingCount,
+        getCurrentServerTime() >= meeting.announcementAt
       );
     });
   }
@@ -85,27 +88,21 @@ export class AdminService {
   async findOneMeeting(meetingId: number) {
     const meeting = await this.meetingRepository.findOne({
       where: { id: meetingId },
-      relations: ["applications"],
     });
 
     if (!meeting) {
       throw new NotFoundException("모임을 찾을 수 없습니다.");
     }
 
-    const applicantCount = meeting.applications?.length || 0;
-    const selectedCount =
-      meeting.applications?.filter((app) => app.status === ApplicationStatus.SELECTED).length || 0;
-    const rejectedCount =
-      meeting.applications?.filter((app) => app.status === ApplicationStatus.REJECTED).length || 0;
-    const pendingCount =
-      meeting.applications?.filter((app) => app.status === ApplicationStatus.PENDING).length || 0;
+    const stats = await this.getMeetingStats(meetingId);
 
     return this.meetingMapper.toAdminResponse(
       meeting,
-      applicantCount,
-      selectedCount,
-      rejectedCount,
-      pendingCount
+      stats.applicantCount,
+      stats.selectedCount,
+      stats.rejectedCount,
+      stats.pendingCount,
+      getCurrentServerTime() >= meeting.announcementAt
     );
   }
 
@@ -194,5 +191,76 @@ export class AdminService {
         status: application.status,
       };
     });
+  }
+
+  private async getMeetingStatsMap(meetingIds: number[]): Promise<
+    Map<
+      number,
+      {
+        applicantCount: number;
+        selectedCount: number;
+        rejectedCount: number;
+        pendingCount: number;
+      }
+    >
+  > {
+    if (meetingIds.length === 0) {
+      return new Map();
+    }
+
+    const rows = await this.applicationRepository
+      .createQueryBuilder("application")
+      .select("application.meetingId", "meetingId")
+      .addSelect("COUNT(*)", "applicantCount")
+      .addSelect(
+        "SUM(CASE WHEN application.status = :selectedStatus THEN 1 ELSE 0 END)",
+        "selectedCount"
+      )
+      .addSelect(
+        "SUM(CASE WHEN application.status = :rejectedStatus THEN 1 ELSE 0 END)",
+        "rejectedCount"
+      )
+      .addSelect(
+        "SUM(CASE WHEN application.status = :pendingStatus THEN 1 ELSE 0 END)",
+        "pendingCount"
+      )
+      .where("application.meetingId IN (:...meetingIds)", { meetingIds })
+      .groupBy("application.meetingId")
+      .setParameters({
+        selectedStatus: ApplicationStatus.SELECTED,
+        rejectedStatus: ApplicationStatus.REJECTED,
+        pendingStatus: ApplicationStatus.PENDING,
+      })
+      .getRawMany<{
+        meetingId: string;
+        applicantCount: string;
+        selectedCount: string;
+        rejectedCount: string;
+        pendingCount: string;
+      }>();
+
+    return new Map(
+      rows.map((row) => [
+        Number(row.meetingId),
+        {
+          applicantCount: Number(row.applicantCount),
+          selectedCount: Number(row.selectedCount),
+          rejectedCount: Number(row.rejectedCount),
+          pendingCount: Number(row.pendingCount),
+        },
+      ])
+    );
+  }
+
+  private async getMeetingStats(meetingId: number) {
+    const statsMap = await this.getMeetingStatsMap([meetingId]);
+    return (
+      statsMap.get(meetingId) || {
+        applicantCount: 0,
+        selectedCount: 0,
+        rejectedCount: 0,
+        pendingCount: 0,
+      }
+    );
   }
 }

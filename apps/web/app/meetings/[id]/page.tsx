@@ -18,7 +18,7 @@ import { Header } from "@/components/header";
 import { LoginRequiredState } from "@/components/login-required-state";
 import { MeetingTypeBadge } from "@/components/meeting-type-badge";
 import { ApplicationStatusBadge } from "@/components/application-status-badge";
-import { formatDateKorean, getRelativeTime, isAnnouncementPassed } from "@/lib/date-utils";
+import { formatDateKorean, getRelativeTime } from "@/lib/date-utils";
 import { getErrorMessage } from "@/lib/error-handler";
 import { useApplyToMeeting, useMeetingDetail } from "@/lib/react-query/meetings";
 import { useCurrentUser } from "@/lib/react-query/auth";
@@ -43,13 +43,15 @@ export default function MeetingDetailPage({ params }: MeetingDetailPageProps) {
   const router = useRouter();
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const currentUserQuery = useCurrentUser();
+  const currentUser = currentUserQuery.data;
+  const currentUserId = currentUser?.id ?? null;
 
   const {
     data: meeting,
     isLoading,
     error,
     refetch,
-  } = useMeetingDetail(meetingId, Boolean(currentUserQuery.data));
+  } = useMeetingDetail(meetingId, currentUserId);
   const applyMutation = useApplyToMeeting();
 
   const isInitialLoading = currentUserQuery.isLoading || isLoading;
@@ -119,7 +121,7 @@ export default function MeetingDetailPage({ params }: MeetingDetailPageProps) {
     );
   }
 
-  if (!currentUserQuery.data) {
+  if (!currentUser) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -169,9 +171,8 @@ export default function MeetingDetailPage({ params }: MeetingDetailPageProps) {
     );
   }
 
-  const isPassed = isAnnouncementPassed(meeting.announcementAt);
   const hasApplied = Boolean(meeting.myApplication);
-  const canApplyNow = meeting.canApply && !hasApplied && !isPassed;
+  const canApplyNow = meeting.canApply && !hasApplied;
 
   return (
     <div className="min-h-screen flex flex-col">

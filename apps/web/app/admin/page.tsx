@@ -56,7 +56,7 @@ import {
   useUpdateApplicationStatus,
 } from "@/lib/react-query/admin";
 import { useCurrentUser } from "@/lib/react-query/auth";
-import { formatDateKorean, getRelativeTime, isAnnouncementPassed } from "@/lib/date-utils";
+import { formatDateKorean, getRelativeTime } from "@/lib/date-utils";
 import { getErrorMessage } from "@/lib/error-handler";
 
 const meetingTypeLabels: Record<MeetingType, string> = {
@@ -80,16 +80,21 @@ export default function AdminPage() {
   }>({ open: false, applicant: null, action: "select" });
   const currentUserQuery = useCurrentUser();
   const currentUser = currentUserQuery.data;
+  const currentUserId = currentUser?.id ?? null;
   const isAdmin = currentUser?.role === "ADMIN";
 
-  const meetingsQuery = useAdminMeetings(isAdmin);
+  const meetingsQuery = useAdminMeetings(currentUserId, isAdmin);
   const createMeetingMutation = useCreateMeeting();
   const updateStatusMutation = useUpdateApplicationStatus();
 
   const meetings = meetingsQuery.data ?? [];
   const selectedMeeting = meetings.find((meeting) => meeting.id === selectedMeetingId) ?? null;
 
-  const applicationsQuery = useAdminMeetingApplications(selectedMeetingId ?? undefined, isAdmin);
+  const applicationsQuery = useAdminMeetingApplications(
+    selectedMeetingId,
+    currentUserId,
+    isAdmin
+  );
   const applicants = applicationsQuery.data ?? [];
 
   const handleCreateMeeting = async () => {
@@ -107,6 +112,10 @@ export default function AdminPage() {
     }
     if (!formAnnouncementAt) {
       toast.error("발표일을 입력해주세요.");
+      return;
+    }
+    if (new Date(formAnnouncementAt) <= new Date()) {
+      toast.error("발표일은 현재 시각 이후로 입력해주세요.");
       return;
     }
 
@@ -308,6 +317,7 @@ export default function AdminPage() {
                     id="meeting-announcement"
                     type="datetime-local"
                     value={formAnnouncementAt}
+                    min={getDateTimeLocalValue()}
                     onChange={(event) => setFormAnnouncementAt(event.target.value)}
                   />
                 </div>
@@ -530,7 +540,7 @@ function MeetingItem({
       <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
         <Calendar className="size-3" />
         발표일: {formatDateKorean(meeting.announcementAt)}
-        {isAnnouncementPassed(meeting.announcementAt) ? (
+        {meeting.announcementPassed ? (
           <span className="ml-1 text-green-600">(발표 완료)</span>
         ) : (
           <span className="ml-1 text-blue-500">({getRelativeTime(meeting.announcementAt)})</span>
@@ -569,7 +579,7 @@ function ApplicantTable({
   meeting: AdminMeetingItem;
   onUpdateStatus: (applicant: Applicant, action: "select" | "reject") => void;
 }) {
-  const isPassed = isAnnouncementPassed(meeting.announcementAt);
+  const isPassed = meeting.announcementPassed;
   const isCapacityFull = meeting.selectedCount >= meeting.capacity;
 
   return (
@@ -633,6 +643,11 @@ function ApplicantTable({
       </TableBody>
     </Table>
   );
+}
+
+function getDateTimeLocalValue(date = new Date()) {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 16);
 }
 
 function ApplicantTableSkeleton() {

@@ -25,6 +25,7 @@
 - `GET /api/me/applications`
 
 모든 사용자 API는 로그인 후 사용한다.
+`GET /api/meetings`는 현재 모집 중인 모임만 반환한다.
 
 ## 관리자 API
 
@@ -51,6 +52,12 @@
 - 사용자: `user1 / user123`
 - 사용자: `user2 / user123`
 - 사용자: `user3 / user123`
+
+## 로컬 초기 상태
+
+- `pnpm --filter server seed`는 로컬 SQLite를 초기 상태로 다시 만든다.
+- 기본 SQLite 파일은 저장소에 고정 데이터로 유지하지 않고, seed로 로컬 생성한다.
+- seed 직후에는 카테고리와 테스트 계정만 존재하고, 모임과 신청 데이터는 비어 있다.
 
 ## 검증 명령
 

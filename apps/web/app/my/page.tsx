@@ -13,7 +13,7 @@ import { useCurrentUser } from "@/lib/react-query/auth";
 import { useMyApplications } from "@/lib/react-query/meetings";
 import { getErrorMessage } from "@/lib/error-handler";
 import { ApplicationStatus } from "@/lib/types";
-import { formatDateKorean, getRelativeTime, isAnnouncementPassed } from "@/lib/date-utils";
+import { formatDateKorean, getRelativeTime } from "@/lib/date-utils";
 import {
   ArrowLeft,
   Calendar,
@@ -27,13 +27,15 @@ import {
 
 export default function MyApplicationsPage() {
   const currentUserQuery = useCurrentUser();
+  const currentUser = currentUserQuery.data;
+  const currentUserId = currentUser?.id ?? null;
 
   const {
     data: applications = [],
     isLoading,
     error,
     refetch,
-  } = useMyApplications(Boolean(currentUserQuery.data));
+  } = useMyApplications(currentUserId);
 
   const isInitialLoading = currentUserQuery.isLoading || isLoading;
 
@@ -70,7 +72,7 @@ export default function MyApplicationsPage() {
           </Card>
         )}
 
-        {!isInitialLoading && !currentUserQuery.error && !currentUserQuery.data && (
+        {!isInitialLoading && !currentUserQuery.error && !currentUser && (
           <LoginRequiredState description="내 신청 결과는 로그인 후 확인할 수 있습니다." />
         )}
 
@@ -96,7 +98,7 @@ export default function MyApplicationsPage() {
           </div>
         )}
 
-        {!isInitialLoading && !currentUserQuery.error && currentUserQuery.data && error && (
+        {!isInitialLoading && !currentUserQuery.error && currentUser && error && (
           <Card className="border-destructive/50">
             <CardContent className="flex flex-col items-center justify-center gap-4 py-10 text-center">
               <AlertCircle className="size-12 text-destructive" />
@@ -114,11 +116,7 @@ export default function MyApplicationsPage() {
           </Card>
         )}
 
-        {!isInitialLoading &&
-          !currentUserQuery.error &&
-          currentUserQuery.data &&
-          !error &&
-          applications.length === 0 && (
+        {!isInitialLoading && !currentUserQuery.error && currentUser && !error && applications.length === 0 && (
             <Empty className="py-20">
               <ClipboardList className="size-12 text-muted-foreground/50" />
               <EmptyTitle>신청한 모임이 없습니다</EmptyTitle>
@@ -132,14 +130,9 @@ export default function MyApplicationsPage() {
             </Empty>
           )}
 
-        {!isInitialLoading &&
-          !currentUserQuery.error &&
-          currentUserQuery.data &&
-          !error &&
-          applications.length > 0 && (
+        {!isInitialLoading && !currentUserQuery.error && currentUser && !error && applications.length > 0 && (
             <div className="flex flex-col gap-4">
               {applications.map((application) => {
-                const isPassed = isAnnouncementPassed(application.announcementAt);
                 const isSelected = application.status === ApplicationStatus.SELECTED;
 
                 return (
@@ -150,7 +143,7 @@ export default function MyApplicationsPage() {
                   >
                     <Card
                       className={`transition-all duration-200 hover:shadow-md hover:border-primary/20 ${
-                        isSelected && isPassed
+                        isSelected && application.announcementPassed
                           ? "border-green-500/50 bg-green-50/50 dark:bg-green-950/20"
                           : ""
                       }`}
@@ -162,7 +155,7 @@ export default function MyApplicationsPage() {
                             {application.meetingTitle}
                           </CardTitle>
                         </div>
-                        {isSelected && isPassed && (
+                        {isSelected && application.announcementPassed && (
                           <CardDescription className="flex items-center gap-1 text-green-600 dark:text-green-400">
                             <PartyPopper className="size-4" />
                             축하합니다! 모임에 선정되었습니다!
@@ -187,7 +180,7 @@ export default function MyApplicationsPage() {
                         </div>
 
                         <div className="mt-4">
-                          {isPassed ? (
+                          {application.announcementPassed ? (
                             <ApplicationStatusBadge status={application.status} size="large" />
                           ) : (
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">

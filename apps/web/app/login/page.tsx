@@ -12,7 +12,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { authApiClient } from "@/lib/api-client/auth";
 import { getErrorMessage } from "@/lib/error-handler";
+import { adminKeys } from "@/lib/react-query/admin";
 import { authKeys, useCurrentUser } from "@/lib/react-query/auth";
+import { meetingKeys } from "@/lib/react-query/meetings";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -48,6 +50,9 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
+      queryClient.removeQueries({ queryKey: meetingKeys.all });
+      queryClient.removeQueries({ queryKey: adminKeys.all });
+
       const response = await authApiClient.login({
         userId: formData.userId.trim(),
         password: formData.password,

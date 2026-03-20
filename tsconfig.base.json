@@ -4,8 +4,6 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["apps/web/*"],
-      "@packages/shared": ["packages/shared/src/index"],
-      "@packages/shared/*": ["packages/shared/src/*"],
       "@modules/*": ["apps/server/src/modules/*"]
     }
   }

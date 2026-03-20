@@ -17,6 +17,7 @@ export function useCurrentUser() {
     queryKey: authKeys.me(),
     queryFn: () => authApiClient.getCurrentUser(),
     staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -28,7 +29,6 @@ export function useLogout() {
     onSuccess: () => {
       queryClient.setQueryData(authKeys.me(), null);
       queryClient.removeQueries({ queryKey: meetingKeys.all });
-      queryClient.removeQueries({ queryKey: meetingKeys.myApplications() });
       queryClient.removeQueries({ queryKey: adminKeys.all });
       toast.success("로그아웃되었습니다.");
     },

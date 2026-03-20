@@ -32,11 +32,6 @@ export class Meeting {
   @JoinColumn({ name: "categoryId" })
   category: MeetingCategory;
 
-  // Backward compatibility: computed property that returns category key as type
-  get type(): MeetingType {
-    return this.category?.key as MeetingType;
-  }
-
   @Column({ type: "text" })
   title: string;
 

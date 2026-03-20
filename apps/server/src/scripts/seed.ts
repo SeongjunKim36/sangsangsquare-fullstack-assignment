@@ -1,10 +1,15 @@
+import { existsSync, mkdirSync, rmSync } from "node:fs";
+import { dirname } from "node:path";
 import { DataSource } from "typeorm";
 import { createTypeOrmOptions } from "../config/typeorm.config";
+import { DATABASE_PATH } from "../constants/database.constant";
 import { MeetingCategory, User, UserRole } from "../entity";
 import * as bcrypt from "bcrypt";
 
 async function seed() {
   console.log("🌱 Starting database seeding...");
+
+  resetDatabaseFiles();
 
   const options = createTypeOrmOptions();
   const dataSource = new DataSource(options);
@@ -41,17 +46,9 @@ async function seedMeetingCategories(dataSource: DataSource) {
   console.log("\n📚 Seeding MeetingCategories...");
 
   for (const categoryData of categories) {
-    const existing = await categoryRepository.findOne({
-      where: { key: categoryData.key },
-    });
-
-    if (existing) {
-      console.log(`⏭️  Category already exists: ${categoryData.key} (${categoryData.label})`);
-    } else {
-      const category = categoryRepository.create(categoryData);
-      await categoryRepository.save(category);
-      console.log(`✅ Created category: ${categoryData.key} (${categoryData.label})`);
-    }
+    const category = categoryRepository.create(categoryData);
+    await categoryRepository.save(category);
+    console.log(`✅ Created category: ${categoryData.key} (${categoryData.label})`);
   }
 }
 
@@ -88,24 +85,32 @@ async function seedUsers(dataSource: DataSource) {
   console.log("\n👥 Seeding Users...");
 
   for (const userData of users) {
-    const existing = await userRepository.findOne({
-      where: { userId: userData.userId },
+    const hashedPassword = await bcrypt.hash(userData.password, 10);
+    const user = userRepository.create({
+      userId: userData.userId,
+      name: userData.name,
+      password: hashedPassword,
+      role: userData.role,
     });
-
-    if (existing) {
-      console.log(`⏭️  User already exists: ${userData.userId} (${userData.name})`);
-    } else {
-      const hashedPassword = await bcrypt.hash(userData.password, 10);
-      const user = userRepository.create({
-        userId: userData.userId,
-        name: userData.name,
-        password: hashedPassword,
-        role: userData.role,
-      });
-      await userRepository.save(user);
-      console.log(`✅ Created user: ${userData.userId} (${userData.name}, role: ${userData.role})`);
-    }
+    await userRepository.save(user);
+    console.log(`✅ Created user: ${userData.userId} (${userData.name}, role: ${userData.role})`);
   }
 }
 
 void seed();
+
+function resetDatabaseFiles() {
+  const databasePath = process.env["DATABASE_PATH"] || DATABASE_PATH;
+
+  mkdirSync(dirname(databasePath), { recursive: true });
+
+  console.log(`🧹 Resetting database: ${databasePath}`);
+
+  for (const suffix of ["", "-wal", "-shm"]) {
+    const filePath = `${databasePath}${suffix}`;
+
+    if (existsSync(filePath)) {
+      rmSync(filePath, { force: true });
+    }
+  }
+}

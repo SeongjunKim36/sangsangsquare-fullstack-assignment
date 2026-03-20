@@ -30,7 +30,6 @@
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.2.5",
     "@nestjs/typeorm": "^11.0.0",
-    "@packages/shared": "workspace:*",
     "@types/bcrypt": "^6.0.0",
     "@types/express-session": "^1.18.2",
     "bcrypt": "^6.0.0",

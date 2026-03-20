@@ -26,6 +26,7 @@ export interface MeetingListItem {
   applicantCount: number;
   canApply: boolean;
   myApplicationStatus: ApplicationStatus | null;
+  announcementPassed: boolean;
 }
 
 export interface MeetingApplicationSummary {
@@ -48,6 +49,7 @@ export interface MyApplication {
   meetingTitle: string;
   capacity: number;
   announcementAt: string;
+  announcementPassed: boolean;
   status: ApplicationStatus;
   appliedAt: string;
 }
@@ -91,6 +93,7 @@ export interface AdminMeetingItem {
   description: string | null;
   capacity: number;
   announcementAt: string;
+  announcementPassed: boolean;
   applicantCount: number;
   selectedCount: number;
   rejectedCount: number;

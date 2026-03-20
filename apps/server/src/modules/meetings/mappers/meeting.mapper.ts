@@ -1,17 +1,22 @@
 import { Injectable } from "@nestjs/common";
-import { Meeting, Application, ApplicationStatus } from "../../../entity";
+import { Meeting, Application, ApplicationStatus, MeetingType } from "../../../entity";
 
 @Injectable()
 export class MeetingMapper {
+  private getMeetingType(meeting: Meeting): MeetingType {
+    return meeting.category.key as MeetingType;
+  }
+
   toListResponse(
     meeting: Meeting,
     applicantCount: number,
     canApply: boolean,
-    myApplicationStatus: ApplicationStatus | null
+    myApplicationStatus: ApplicationStatus | null,
+    announcementPassed: boolean
   ) {
     return {
       id: meeting.id,
-      type: meeting.type,
+      type: this.getMeetingType(meeting),
       title: meeting.title,
       description: meeting.description,
       capacity: meeting.capacity,
@@ -19,6 +24,7 @@ export class MeetingMapper {
       applicantCount,
       canApply,
       myApplicationStatus,
+      announcementPassed,
     };
   }
 
@@ -27,11 +33,18 @@ export class MeetingMapper {
     applicantCount: number,
     canApply: boolean,
     myApplicationStatus: ApplicationStatus | null,
+    announcementPassed: boolean,
     myApplication: Application | null,
     userName?: string
   ) {
     return {
-      ...this.toListResponse(meeting, applicantCount, canApply, myApplicationStatus),
+      ...this.toListResponse(
+        meeting,
+        applicantCount,
+        canApply,
+        myApplicationStatus,
+        announcementPassed
+      ),
       myApplication: myApplication
         ? {
             applicationId: myApplication.id,
@@ -48,11 +61,12 @@ export class MeetingMapper {
     applicantCount: number,
     selectedCount: number,
     rejectedCount: number,
-    pendingCount: number
+    pendingCount: number,
+    announcementPassed: boolean
   ) {
     return {
       id: meeting.id,
-      type: meeting.type,
+      type: this.getMeetingType(meeting),
       title: meeting.title,
       description: meeting.description,
       capacity: meeting.capacity,
@@ -62,17 +76,23 @@ export class MeetingMapper {
       selectedCount,
       rejectedCount,
       pendingCount,
+      announcementPassed,
     };
   }
 
-  toMyApplicationResponse(application: Application, visibleStatus: ApplicationStatus) {
+  toMyApplicationResponse(
+    application: Application,
+    visibleStatus: ApplicationStatus,
+    announcementPassed: boolean
+  ) {
     return {
       applicationId: application.id,
       meetingId: application.meeting.id,
-      meetingType: application.meeting.type,
+      meetingType: this.getMeetingType(application.meeting),
       meetingTitle: application.meeting.title,
       capacity: application.meeting.capacity,
       announcementAt: application.meeting.announcementAt.toISOString(),
+      announcementPassed,
       status: visibleStatus,
       appliedAt: application.createdAt.toISOString(),
     };

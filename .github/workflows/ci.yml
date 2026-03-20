@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - "codex/**"
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Seed local database
+        run: pnpm --filter server seed
+
+      - name: Lint web
+        run: pnpm --filter web lint
+
+      - name: Lint server
+        run: pnpm --filter server lint
+
+      - name: Build web
+        run: pnpm --filter web build
+
+      - name: Build server
+        run: pnpm --filter server build
+
+      - name: Run server e2e
+        run: pnpm --filter server exec jest --config ./test/jest-e2e.json --watchman=false --runInBand
