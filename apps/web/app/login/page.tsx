@@ -148,6 +148,9 @@ export default function LoginPage() {
                 <p>
                   사용자: <code>user2</code> / <code>user123</code>
                 </p>
+                <p>
+                  사용자: <code>user3</code> / <code>user123</code>
+                </p>
               </div>
             </div>
           </CardContent>

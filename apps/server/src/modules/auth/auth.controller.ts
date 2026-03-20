@@ -1,10 +1,22 @@
-import { Controller, Post, Body, Session, HttpCode, Get, UseGuards } from "@nestjs/common";
+import {
+  Controller,
+  Post,
+  Body,
+  Session,
+  HttpCode,
+  Get,
+  UseGuards,
+  Res,
+  InternalServerErrorException,
+} from "@nestjs/common";
+import type { Response } from "express";
 import type { Session as ExpressSession, SessionData } from "express-session";
 import { AuthService } from "./auth.service";
 import { AuthGuard } from "./auth.guard";
 import { CurrentUser } from "./current-user.decorator";
 import { User } from "../../entity/user.entity";
 import { LoginDto } from "../../dto";
+import { SESSION_COOKIE_NAME } from "../../constants";
 
 type AppSession = ExpressSession & Partial<SessionData>;
 
@@ -28,8 +40,26 @@ export class AuthController {
 
   @Post("logout")
   @HttpCode(200)
-  logout(@Session() session: AppSession) {
-    delete session.userId;
+  async logout(@Session() session: AppSession, @Res({ passthrough: true }) response: Response) {
+    try {
+      await new Promise<void>((resolve, reject) => {
+        session.destroy((error) => {
+          if (error) {
+            reject(
+              error instanceof Error
+                ? error
+                : new Error("세션 종료 중 알 수 없는 오류가 발생했습니다.")
+            );
+            return;
+          }
+          resolve();
+        });
+      });
+    } catch {
+      throw new InternalServerErrorException("로그아웃 처리 중 오류가 발생했습니다.");
+    }
+
+    response.clearCookie(SESSION_COOKIE_NAME, { path: "/" });
 
     return {
       success: true,

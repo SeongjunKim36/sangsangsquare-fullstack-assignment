@@ -1,7 +1,8 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { ValidationPipe } from "@nestjs/common";
 import { NestExpressApplication } from "@nestjs/platform-express";
-import type { Express } from "express";
+import { existsSync, rmSync } from "node:fs";
+import { join } from "node:path";
 import * as request from "supertest";
 import { AppModule } from "../src/modules/app.module";
 import { DataSource } from "typeorm";
@@ -21,14 +22,21 @@ type UpdateApplicationResponse = {
   message: string;
 };
 
+const TEST_DATABASE_PATH = join(process.cwd(), "data", "assignment.e2e.sqlite");
+
+process.env["NODE_ENV"] = "test";
+process.env["DATABASE_PATH"] = TEST_DATABASE_PATH;
+
 describe("Transaction & Concurrency Tests (e2e)", () => {
   let app: NestExpressApplication;
   let dataSource: DataSource;
-  let httpApp: Express;
+  let httpServer: ReturnType<NestExpressApplication["getHttpServer"]>;
   let adminCookie: string[];
   let userCookies: string[][];
 
   beforeAll(async () => {
+    cleanupTestDatabaseFiles();
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -46,7 +54,7 @@ describe("Transaction & Concurrency Tests (e2e)", () => {
 
     await app.init();
 
-    httpApp = app.getHttpAdapter().getInstance();
+    httpServer = app.getHttpServer();
     dataSource = moduleFixture.get<DataSource>(DataSource);
   });
 
@@ -54,6 +62,8 @@ describe("Transaction & Concurrency Tests (e2e)", () => {
     if (app) {
       await app.close();
     }
+
+    cleanupTestDatabaseFiles();
   });
 
   describe("Application Status Update with Pessimistic Lock", () => {
@@ -101,14 +111,14 @@ describe("Transaction & Concurrency Tests (e2e)", () => {
         ]
       );
 
-      adminCookie = await loginAndGetCookie(httpApp, "admin", "admin123");
+      adminCookie = await loginAndGetCookie(httpServer, "admin", "admin123");
       userCookies = [
-        await loginAndGetCookie(httpApp, "user1", "user123"),
-        await loginAndGetCookie(httpApp, "user2", "user123"),
-        await loginAndGetCookie(httpApp, "user3", "user123"),
+        await loginAndGetCookie(httpServer, "user1", "user123"),
+        await loginAndGetCookie(httpServer, "user2", "user123"),
+        await loginAndGetCookie(httpServer, "user3", "user123"),
       ];
 
-      const createResponse = await request(httpApp)
+      const createResponse = await request(httpServer)
         .post("/api/admin/meetings")
         .set("Cookie", adminCookie)
         .send({
@@ -127,7 +137,7 @@ describe("Transaction & Concurrency Tests (e2e)", () => {
       applicationIds = [];
 
       for (const userCookie of userCookies) {
-        const applyResponse = await request(httpApp)
+        const applyResponse = await request(httpServer)
           .post(`/api/meetings/${meetingId}/applications`)
           .set("Cookie", userCookie)
           .expect(201);
@@ -147,7 +157,7 @@ describe("Transaction & Concurrency Tests (e2e)", () => {
 
     it("should prevent capacity overflow with pessimistic lock", async () => {
       const promises = applicationIds.map((appId) =>
-        request(httpApp)
+        request(httpServer)
           .patch(`/api/admin/meetings/${meetingId}/applications/${appId}`)
           .set("Cookie", adminCookie)
           .send({ status: "SELECTED" })
@@ -169,21 +179,21 @@ describe("Transaction & Concurrency Tests (e2e)", () => {
     });
 
     it("should handle sequential selections correctly", async () => {
-      const firstResult = await request(httpApp)
+      const firstResult = await request(httpServer)
         .patch(`/api/admin/meetings/${meetingId}/applications/${applicationIds[0]}`)
         .set("Cookie", adminCookie)
         .send({ status: "SELECTED" });
 
       expect(firstResult.status).toBe(200);
 
-      const secondResult = await request(httpApp)
+      const secondResult = await request(httpServer)
         .patch(`/api/admin/meetings/${meetingId}/applications/${applicationIds[1]}`)
         .set("Cookie", adminCookie)
         .send({ status: "SELECTED" });
 
       expect(secondResult.status).toBe(200);
 
-      const thirdResult = await request(httpApp)
+      const thirdResult = await request(httpServer)
         .patch(`/api/admin/meetings/${meetingId}/applications/${applicationIds[2]}`)
         .set("Cookie", adminCookie)
         .send({ status: "SELECTED" });
@@ -195,17 +205,17 @@ describe("Transaction & Concurrency Tests (e2e)", () => {
     });
 
     it("should allow rejection without capacity check", async () => {
-      await request(httpApp)
+      await request(httpServer)
         .patch(`/api/admin/meetings/${meetingId}/applications/${applicationIds[0]}`)
         .set("Cookie", adminCookie)
         .send({ status: "SELECTED" });
 
-      await request(httpApp)
+      await request(httpServer)
         .patch(`/api/admin/meetings/${meetingId}/applications/${applicationIds[1]}`)
         .set("Cookie", adminCookie)
         .send({ status: "SELECTED" });
 
-      const rejectResult = await request(httpApp)
+      const rejectResult = await request(httpServer)
         .patch(`/api/admin/meetings/${meetingId}/applications/${applicationIds[2]}`)
         .set("Cookie", adminCookie)
         .send({ status: "REJECTED" });
@@ -219,11 +229,11 @@ describe("Transaction & Concurrency Tests (e2e)", () => {
 });
 
 async function loginAndGetCookie(
-  httpApp: Express,
+  httpServer: ReturnType<NestExpressApplication["getHttpServer"]>,
   userId: string,
   password: string
 ): Promise<string[]> {
-  const response = await request(httpApp)
+  const response = await request(httpServer)
     .post("/api/auth/login")
     .send({ userId, password })
     .expect(200);
@@ -236,4 +246,14 @@ async function loginAndGetCookie(
   }
 
   return cookies;
+}
+
+function cleanupTestDatabaseFiles() {
+  for (const suffix of ["", "-wal", "-shm"]) {
+    const filePath = `${TEST_DATABASE_PATH}${suffix}`;
+
+    if (existsSync(filePath)) {
+      rmSync(filePath, { force: true });
+    }
+  }
 }

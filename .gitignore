@@ -18,6 +18,9 @@ out
 # Testing
 coverage
 .nyc_output
+apps/server/data/*.e2e.sqlite
+apps/server/data/*.e2e.sqlite-shm
+apps/server/data/*.e2e.sqlite-wal
 
 # Logs
 logs

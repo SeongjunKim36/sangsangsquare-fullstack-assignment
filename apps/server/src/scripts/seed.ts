@@ -77,6 +77,12 @@ async function seedUsers(dataSource: DataSource) {
       password: "user123",
       role: UserRole.USER,
     },
+    {
+      userId: "user3",
+      name: "테스트유저3",
+      password: "user123",
+      role: UserRole.USER,
+    },
   ];
 
   console.log("\n👥 Seeding Users...");

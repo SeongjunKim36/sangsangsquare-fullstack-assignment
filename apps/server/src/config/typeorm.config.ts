@@ -10,13 +10,16 @@ type PreparedDatabase = {
 };
 
 export const createTypeOrmOptions = (): TypeOrmModuleOptions & DataSourceOptions => {
+  const isProduction = process.env["NODE_ENV"] === "production";
+  const isTest = process.env["NODE_ENV"] === "test";
+
   return {
     name: DATABASE_NAME,
     type: "better-sqlite3",
     database: process.env["DATABASE_PATH"] || DATABASE_PATH,
     entities: [User, MeetingCategory, Meeting, Application],
-    synchronize: true,
-    logging: true,
+    synchronize: !isProduction,
+    logging: !isProduction && !isTest,
     // better-sqlite3 전용 옵션
     enableWAL: true, // Write-Ahead Logging 활성화 (성능 향상)
     prepareDatabase: (db) => {

@@ -62,4 +62,5 @@ pnpm --filter server build
 pnpm --filter server exec jest --config ./test/jest-e2e.json --watchman=false --runInBand
 ```
 
-로컬 sandbox 제약으로 E2E는 포트 바인딩 권한이 필요할 수 있다.
+- E2E는 제출용 DB가 아니라 `apps/server/data/assignment.e2e.sqlite`를 사용한다.
+- 테스트 종료 후 E2E DB 파일과 WAL/SHM 파일을 정리한다.

@@ -3,7 +3,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { authApiClient } from "../api-client/auth";
 import { getErrorMessage } from "../error-handler";
-import { QUERY_STALE_TIME } from "../constants";
 import { adminKeys } from "./admin";
 import { meetingKeys } from "./meetings";
 import { toast } from "sonner";
@@ -17,7 +16,7 @@ export function useCurrentUser() {
   return useQuery({
     queryKey: authKeys.me(),
     queryFn: () => authApiClient.getCurrentUser(),
-    staleTime: QUERY_STALE_TIME,
+    staleTime: 0,
   });
 }
 

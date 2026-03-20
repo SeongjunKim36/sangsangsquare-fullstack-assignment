@@ -1,12 +1,13 @@
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import * as session from "express-session";
-import { API_PREFIX } from "../constants";
+import { API_PREFIX, SESSION_COOKIE_NAME } from "../constants";
 
 export function middleware(app: NestExpressApplication) {
   // 1. Session
   app.use(
     session({
+      name: SESSION_COOKIE_NAME,
       secret: process.env.SESSION_SECRET || "your-secret-key-change-in-production",
       resave: false,
       saveUninitialized: false,
