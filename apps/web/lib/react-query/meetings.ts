@@ -23,13 +23,12 @@ export function useMeetings(userId: number | null) {
   const query = useQuery({
     queryKey: meetingKeys.list(userId),
     queryFn: () => meetingsApiClient.getMeetings(),
-    enabled: userId !== null,
     staleTime: QUERY_STALE_TIME,
     refetchOnWindowFocus: true,
   });
 
   useAnnouncementInvalidation({
-    enabled: userId !== null,
+    enabled: true,
     announcementAtValues: (query.data ?? []).map((meeting) => meeting.announcementAt),
     queryKeys: [meetingKeys.all],
   });
@@ -44,13 +43,13 @@ export function useMeetingDetail(meetingId: number, userId: number | null) {
   const query = useQuery({
     queryKey: meetingKeys.detail(meetingId, userId),
     queryFn: () => meetingsApiClient.getMeetingDetail(meetingId),
-    enabled: userId !== null && Number.isFinite(meetingId) && meetingId > 0,
+    enabled: Number.isFinite(meetingId) && meetingId > 0,
     staleTime: QUERY_STALE_TIME,
     refetchOnWindowFocus: true,
   });
 
   useAnnouncementInvalidation({
-    enabled: userId !== null && Boolean(query.data),
+    enabled: Boolean(query.data),
     announcementAtValues: query.data ? [query.data.announcementAt] : [],
     queryKeys: [meetingKeys.all],
   });

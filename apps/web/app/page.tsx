@@ -6,20 +6,23 @@ export default function HomePage() {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main id="main-content" className="flex-1 container mx-auto px-4 py-6">
-        {/* 페이지 소개 */}
-        <section className="mb-8">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">모집 중인 모임</h1>
-          <p className="mt-2 text-muted-foreground">관심 있는 모임에 신청하고 함께 성장해요!</p>
+        <section className="mb-8 space-y-3">
+          <p className="text-sm font-medium text-primary">상상단 자기계발 모임</p>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+            함께 성장할 모임을 찾아보세요
+          </h1>
+          <p className="max-w-2xl text-muted-foreground">
+            기록, 운동, 독서, 영어까지. 관심 있는 모임을 살펴보고 발표일 전까지 신청할 수 있어요.
+          </p>
         </section>
 
-        {/* 모임 목록 */}
         <MeetingList />
       </main>
 
       {/* 푸터 */}
       <footer className="border-t py-6 mt-auto">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          © 2026 상상단 단톡방 모임. All rights reserved.
+          © 2026 상상단. All rights reserved.
         </div>
       </footer>
     </div>

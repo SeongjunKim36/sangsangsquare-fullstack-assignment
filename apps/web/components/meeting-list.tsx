@@ -2,7 +2,6 @@
 
 import { MeetingCard } from "@/components/meeting-card";
 import { MeetingCardSkeletonGrid } from "@/components/meeting-card-skeleton";
-import { LoginRequiredState } from "@/components/login-required-state";
 import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,31 +21,8 @@ export function MeetingList() {
     refetch,
   } = useMeetings(currentUserId);
 
-  if (currentUserQuery.isLoading || isLoading) {
+  if (isLoading) {
     return <MeetingCardSkeletonGrid />;
-  }
-
-  if (currentUserQuery.error) {
-    return (
-      <Card className="border-destructive/50">
-        <CardContent className="flex flex-col items-center justify-center gap-4 py-10 text-center">
-          <AlertCircle className="size-12 text-destructive" />
-          <div>
-            <h3 className="font-semibold text-lg">인증 정보를 확인할 수 없습니다</h3>
-            <p className="text-muted-foreground mt-1">
-              {getErrorMessage(
-                currentUserQuery.error,
-                "로그인 상태를 확인하는 중 오류가 발생했습니다."
-              )}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!currentUser) {
-    return <LoginRequiredState description="모임 목록은 로그인 후 확인할 수 있습니다." />;
   }
 
   if (error) {

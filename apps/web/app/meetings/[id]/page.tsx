@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Header } from "@/components/header";
-import { LoginRequiredState } from "@/components/login-required-state";
 import { MeetingTypeBadge } from "@/components/meeting-type-badge";
 import { ApplicationStatusBadge } from "@/components/application-status-badge";
 import { formatDateKorean, getRelativeTime } from "@/lib/date-utils";
@@ -31,6 +30,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Loader2,
+  LogIn,
 } from "lucide-react";
 
 interface MeetingDetailPageProps {
@@ -54,7 +54,7 @@ export default function MeetingDetailPage({ params }: MeetingDetailPageProps) {
   } = useMeetingDetail(meetingId, currentUserId);
   const applyMutation = useApplyToMeeting();
 
-  const isInitialLoading = currentUserQuery.isLoading || isLoading;
+  const isInitialLoading = isLoading;
 
   const handleApply = async () => {
     try {
@@ -86,53 +86,6 @@ export default function MeetingDetailPage({ params }: MeetingDetailPageProps) {
               </div>
             </CardContent>
           </Card>
-        </main>
-      </div>
-    );
-  }
-
-  if (currentUserQuery.error) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <main className="flex-1 container mx-auto px-4 py-6 max-w-2xl">
-          <Button variant="ghost" asChild className="mb-6">
-            <Link href="/">
-              <ArrowLeft className="size-4" />
-              목록으로
-            </Link>
-          </Button>
-          <Card className="border-destructive/50">
-            <CardContent className="flex flex-col items-center justify-center gap-4 py-10 text-center">
-              <AlertCircle className="size-12 text-destructive" />
-              <div>
-                <h3 className="font-semibold text-lg">오류가 발생했습니다</h3>
-                <p className="text-muted-foreground mt-1">
-                  {getErrorMessage(
-                    currentUserQuery.error,
-                    "로그인 상태를 확인하는 중 오류가 발생했습니다."
-                  )}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </main>
-      </div>
-    );
-  }
-
-  if (!currentUser) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        <Header />
-        <main className="flex-1 container mx-auto px-4 py-6 max-w-2xl">
-          <Button variant="ghost" asChild className="mb-6">
-            <Link href="/">
-              <ArrowLeft className="size-4" />
-              목록으로
-            </Link>
-          </Button>
-          <LoginRequiredState description="모임 상세와 신청은 로그인 후 이용할 수 있습니다." />
         </main>
       </div>
     );
@@ -172,7 +125,7 @@ export default function MeetingDetailPage({ params }: MeetingDetailPageProps) {
   }
 
   const hasApplied = Boolean(meeting.myApplication);
-  const canApplyNow = meeting.canApply && !hasApplied;
+  const canApplyNow = Boolean(currentUser) && meeting.canApply && !hasApplied;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -198,7 +151,7 @@ export default function MeetingDetailPage({ params }: MeetingDetailPageProps) {
 
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="text-base">모임 정보</CardTitle>
+            <CardTitle className="text-base">모임 안내</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col gap-3 text-sm">
@@ -228,6 +181,25 @@ export default function MeetingDetailPage({ params }: MeetingDetailPageProps) {
         </Card>
 
         <div className="mb-6">
+          {!currentUser && meeting.canApply && (
+            <Card className="mb-4 border-primary/20 bg-primary/5">
+              <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium">로그인하고 이 모임에 신청해보세요</p>
+                  <p className="text-sm text-muted-foreground">
+                    발표일 전까지 신청할 수 있고, 결과는 발표일 이후 공개됩니다.
+                  </p>
+                </div>
+                <Button asChild>
+                  <Link href="/login">
+                    <LogIn className="size-4" />
+                    로그인하고 신청하기
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           {canApplyNow ? (
             <Button
               size="lg"
@@ -247,9 +219,16 @@ export default function MeetingDetailPage({ params }: MeetingDetailPageProps) {
               <Clock className="size-5" />
               신청 완료
             </Button>
+          ) : !currentUser && meeting.canApply ? (
+            <Button size="lg" className="w-full text-base" asChild>
+              <Link href="/login">
+                <LogIn className="size-5" />
+                로그인하고 신청하기
+              </Link>
+            </Button>
           ) : (
             <Button size="lg" className="w-full text-base" variant="secondary" disabled>
-              신청 마감
+              모집 마감
             </Button>
           )}
         </div>
@@ -257,8 +236,8 @@ export default function MeetingDetailPage({ params }: MeetingDetailPageProps) {
         {meeting.myApplication && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">내 신청 정보</CardTitle>
-              <CardDescription>회원님의 신청 내역입니다.</CardDescription>
+              <CardTitle className="text-base">내 신청 현황</CardTitle>
+              <CardDescription>현재 모임에 대한 신청 상태를 확인할 수 있어요.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col gap-3 text-sm">
@@ -321,7 +300,7 @@ export default function MeetingDetailPage({ params }: MeetingDetailPageProps) {
 
       <footer className="border-t py-6 mt-auto">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          © 2026 상상단 단톡방 모임. All rights reserved.
+          © 2026 상상단. All rights reserved.
         </div>
       </footer>
     </div>

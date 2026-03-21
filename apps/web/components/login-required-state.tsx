@@ -10,7 +10,7 @@ type LoginRequiredStateProps = {
 
 export function LoginRequiredState({
   title = "로그인이 필요합니다",
-  description = "사내 테스트 계정으로 로그인한 뒤 이용해주세요.",
+  description = "로그인 후 신청 결과와 참여 상태를 확인할 수 있어요.",
 }: LoginRequiredStateProps) {
   return (
     <Card>
@@ -23,7 +23,7 @@ export function LoginRequiredState({
         <Button asChild>
           <Link href="/login">
             <LogIn className="size-4" />
-            로그인하러 가기
+            로그인하고 시작하기
           </Link>
         </Button>
       </CardContent>

@@ -57,9 +57,8 @@ export function MeetingCard({ meeting }: MeetingCardProps) {
                 </span>
               </div>
             </div>
-            {/* 상세 보기 안내 */}
             <div className="mt-4 flex items-center gap-1 text-sm font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-              상세 보기
+              자세히 보고 신청하기
               <ArrowRight className="size-4" />
             </div>
           </CardContent>

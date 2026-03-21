@@ -1,27 +1,34 @@
-import { Controller, Get, Post, Param, ParseIntPipe, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Param, ParseIntPipe, Session, UseGuards } from "@nestjs/common";
+import type { Session as ExpressSession, SessionData } from "express-session";
 import { MeetingsService } from "./meetings.service";
 import { AuthGuard } from "../auth/auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { User } from "../../entity";
+import { UserService } from "../user/user.service";
 
-@UseGuards(AuthGuard)
 @Controller("meetings")
 export class MeetingsController {
-  constructor(private readonly meetingsService: MeetingsService) {}
+  constructor(
+    private readonly meetingsService: MeetingsService,
+    private readonly userService: UserService
+  ) {}
 
   @Get()
-  async getMeetings(@CurrentUser() user: User) {
-    return this.meetingsService.findAllForUser(user.id);
+  async getMeetings(@Session() session: AppSession) {
+    const userId = await this.getOptionalUserId(session);
+    return this.meetingsService.findAll(userId);
   }
 
   @Get(":meetingId")
   async getMeetingDetail(
     @Param("meetingId", ParseIntPipe) meetingId: number,
-    @CurrentUser() user: User
+    @Session() session: AppSession
   ) {
-    return this.meetingsService.findOneForUser(meetingId, user.id);
+    const userId = await this.getOptionalUserId(session);
+    return this.meetingsService.findOne(meetingId, userId);
   }
 
+  @UseGuards(AuthGuard)
   @Post(":meetingId/applications")
   async applyToMeeting(
     @Param("meetingId", ParseIntPipe) meetingId: number,
@@ -29,4 +36,15 @@ export class MeetingsController {
   ) {
     return this.meetingsService.applyToMeeting(meetingId, user.id, user.name);
   }
+
+  private async getOptionalUserId(session: AppSession): Promise<number | null> {
+    if (!session.userId) {
+      return null;
+    }
+
+    const user = await this.userService.findById(session.userId);
+    return user?.id ?? null;
+  }
 }
+
+type AppSession = ExpressSession & Partial<SessionData>;

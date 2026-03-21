@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Shield, ArrowLeft } from "lucide-react";
+import { Sparkles, ArrowLeft } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -91,11 +91,11 @@ export default function LoginPage() {
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-1">
             <div className="flex items-center justify-center gap-2 mb-2">
-              <Shield className="size-6 text-blue-500" />
-              <CardTitle className="text-2xl">로그인</CardTitle>
+              <Sparkles className="size-6 text-blue-500" />
+              <CardTitle className="text-2xl">상상단 로그인</CardTitle>
             </div>
             <CardDescription className="text-center">
-              사내 테스트 계정으로 로그인하세요
+              로그인하고 관심 있는 모임에 신청해보세요
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -142,7 +142,10 @@ export default function LoginPage() {
             </form>
 
             <div className="mt-6 rounded-lg border bg-muted/30 p-4 text-sm">
-              <p className="font-medium">테스트 계정</p>
+              <p className="font-medium">과제 검증용 데모 계정</p>
+              <p className="mt-1 text-muted-foreground">
+                실제 서비스 흐름을 기준으로 구현했고, 과제 검증을 위해 아래 계정을 제공합니다.
+              </p>
               <div className="mt-2 space-y-1 text-muted-foreground">
                 <p>
                   관리자: <code>admin</code> / <code>admin123</code>
@@ -164,7 +167,7 @@ export default function LoginPage() {
 
       <footer className="border-t py-6 mt-auto">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          © 2026 상상단 단톡방 모임. All rights reserved.
+          © 2026 상상단. All rights reserved.
         </div>
       </footer>
     </div>

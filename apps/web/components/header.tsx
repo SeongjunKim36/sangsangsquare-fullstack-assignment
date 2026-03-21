@@ -28,10 +28,14 @@ export function Header() {
       <div className="container mx-auto flex h-16 items-center justify-between gap-4 px-4">
         <Link
           href="/"
-          className="flex items-center gap-2 font-semibold text-lg hover:opacity-80 transition-opacity"
+          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
         >
-          <span className="hidden sm:inline">상상단 단톡방 모임</span>
-          <span className="sm:hidden">상상단 모임</span>
+          <div className="flex flex-col">
+            <span className="font-semibold text-lg leading-none">상상단</span>
+            <span className="hidden text-xs text-muted-foreground sm:inline">
+              자기계발 모임
+            </span>
+          </div>
         </Link>
 
         <div className="flex items-center gap-2 sm:gap-4">
@@ -57,7 +61,7 @@ export function Header() {
                       aria-label="내 신청 결과 페이지로 이동"
                     >
                       <ClipboardList className="size-4" />
-                      <span className="hidden sm:inline">내 신청 결과</span>
+                      <span className="hidden sm:inline">내 신청</span>
                     </Link>
                   </Button>
                   {currentUser.role === "ADMIN" && (
@@ -65,10 +69,10 @@ export function Header() {
                       <Link
                         href="/admin"
                         className="flex items-center gap-1"
-                        aria-label="관리자 페이지로 이동"
+                        aria-label="운영 대시보드로 이동"
                       >
                         <Settings className="size-4" />
-                        <span className="hidden sm:inline">관리자</span>
+                        <span className="hidden sm:inline">운영</span>
                       </Link>
                     </Button>
                   )}

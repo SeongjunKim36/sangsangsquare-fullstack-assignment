@@ -276,6 +276,55 @@ describe("Meeting Application Flow (e2e)", () => {
       expect(meetings.every((meeting) => meeting.announcementPassed === false)).toBe(true);
     });
 
+    it("should expose recruiting meetings publicly without login", async () => {
+      const openMeeting = await createMeeting(httpServer, cookies.admin, {
+        type: "BOOK",
+        title: "공개 목록 모임",
+        description: "비로그인 사용자도 볼 수 있어야 하는 모임",
+        capacity: 4,
+        announcementAt: getRelativeIsoDate(2),
+      });
+
+      const closedMeeting = await createMeeting(httpServer, cookies.admin, {
+        type: "RECORD",
+        title: "공개 목록 제외 모임",
+        description: "발표일이 지나면 공개 목록에서 빠져야 함",
+        capacity: 4,
+        announcementAt: getRelativeIsoDate(3),
+      });
+
+      await setMeetingAnnouncementAt(dataSource, closedMeeting.meetingId, createRelativeDate(-1));
+
+      const response = await request(httpServer).get("/api/meetings").expect(200);
+
+      const meetings = response.body as MeetingListResponse[];
+      expect(meetings.map((meeting) => meeting.id)).toContain(openMeeting.meetingId);
+      expect(meetings.map((meeting) => meeting.id)).not.toContain(closedMeeting.meetingId);
+      expect(meetings.every((meeting) => meeting.announcementPassed === false)).toBe(true);
+    });
+
+    it("should expose meeting detail publicly while requiring login for applying", async () => {
+      const meeting = await createMeeting(httpServer, cookies.admin, {
+        type: "ENGLISH",
+        title: "공개 상세 모임",
+        description: "비로그인 사용자 상세 확인 테스트",
+        capacity: 3,
+        announcementAt: getRelativeIsoDate(2),
+      });
+
+      const detailResponse = await request(httpServer)
+        .get(`/api/meetings/${meeting.meetingId}`)
+        .expect(200);
+
+      const detailBody = detailResponse.body as MeetingDetailResponse;
+      expect(detailBody.canApply).toBe(true);
+      expect(detailBody.announcementPassed).toBe(false);
+      expect(detailBody.myApplicationStatus).toBeNull();
+      expect(detailBody.myApplication).toBeNull();
+
+      await request(httpServer).post(`/api/meetings/${meeting.meetingId}/applications`).expect(401);
+    });
+
     it("should reject meetings whose announcement date is already in the past", async () => {
       const response = await request(httpServer)
         .post("/api/admin/meetings")

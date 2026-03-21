@@ -20,15 +20,16 @@ export class MeetingsService {
     private readonly meetingMapper: MeetingMapper
   ) {}
 
-  async findAllForUser(userId: number) {
+  async findAll(userId: number | null = null) {
     const now = getCurrentServerTime();
     const meetings = await this.meetingRepository.find({
       where: { announcementAt: MoreThan(now) },
       order: { createdAt: "DESC" },
     });
     const applicantCounts = await this.getApplicantCountMap(meetings.map((meeting) => meeting.id));
-
-    const myApplicationsMap = await this.getMyApplicationsMapByUserId(userId);
+    const myApplicationsMap = userId
+      ? await this.getMyApplicationsMapByUserId(userId)
+      : new Map<number, Application>();
 
     return meetings.map((meeting) => {
       const myApplication = myApplicationsMap.get(meeting.id);
@@ -47,7 +48,7 @@ export class MeetingsService {
     });
   }
 
-  async findOneForUser(meetingId: number, userId: number) {
+  async findOne(meetingId: number, userId: number | null = null) {
     const meeting = await this.meetingRepository.findOne({
       where: { id: meetingId },
     });
@@ -56,10 +57,12 @@ export class MeetingsService {
       throw new NotFoundException("모임을 찾을 수 없습니다.");
     }
 
-    const myApplication = await this.applicationRepository.findOne({
-      where: { meetingId, userId },
-      relations: ["user"],
-    });
+    const myApplication = userId
+      ? await this.applicationRepository.findOne({
+          where: { meetingId, userId },
+          relations: ["user"],
+        })
+      : null;
 
     const isPassed = isAnnouncementPassed(meeting.announcementAt);
     const canApply = !isPassed && !myApplication;

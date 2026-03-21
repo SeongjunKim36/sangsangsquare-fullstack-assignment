@@ -4,7 +4,7 @@
 
 - 일반 사용자와 관리자를 모두 로그인 기반 `user`로 통일했다.
 - `viewer`, `viewerId`, 익명 사용자 흐름은 제거했다.
-- 사용자 기능은 세션 사용자 기준으로만 동작한다.
+- 모집 중인 모임 목록과 상세는 공개하고, 신청과 결과 확인은 세션 사용자 기준으로 처리한다.
 - 관리자 기능은 세션 + 역할 검사로 분리했다.
 - `MeetingCategory` 테이블은 유지한다.
 
@@ -24,8 +24,9 @@
 - `POST /api/meetings/:meetingId/applications`
 - `GET /api/me/applications`
 
-모든 사용자 API는 로그인 후 사용한다.
 `GET /api/meetings`는 현재 모집 중인 모임만 반환한다.
+`GET /api/meetings`, `GET /api/meetings/:meetingId`는 로그인 없이 접근할 수 있다.
+`POST /api/meetings/:meetingId/applications`, `GET /api/me/applications`는 로그인 후 사용한다.
 
 ## 관리자 API
 

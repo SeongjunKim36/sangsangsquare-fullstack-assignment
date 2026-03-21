@@ -51,8 +51,10 @@ export default function MyApplicationsPage() {
         </Button>
 
         <section className="mb-8">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">내 신청 결과</h1>
-          <p className="mt-2 text-muted-foreground">신청한 모임의 결과를 확인하세요.</p>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">내 모임 신청</h1>
+          <p className="mt-2 text-muted-foreground">
+            신청한 모임과 발표 결과를 한눈에 확인해보세요.
+          </p>
         </section>
 
         {!isInitialLoading && currentUserQuery.error && (
@@ -200,7 +202,7 @@ export default function MyApplicationsPage() {
 
       <footer className="border-t py-6 mt-auto">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          © 2026 상상단 단톡방 모임. All rights reserved.
+          © 2026 상상단. All rights reserved.
         </div>
       </footer>
     </div>

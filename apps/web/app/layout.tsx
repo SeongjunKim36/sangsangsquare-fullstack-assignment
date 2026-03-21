@@ -8,8 +8,8 @@ import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
 import { SkipToContent } from "@/components/skip-to-content";
 
 export const metadata: Metadata = {
-  title: "상상단 단톡방 모임",
-  description: "상상단 단톡방 모임 신청 및 선정 시스템",
+  title: "상상단 자기계발 모임",
+  description: "상상단 자기계발 모임을 둘러보고 신청할 수 있는 서비스",
 };
 
 export default function RootLayout({

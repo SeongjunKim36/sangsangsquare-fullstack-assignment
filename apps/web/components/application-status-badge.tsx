@@ -9,7 +9,7 @@ const statusConfig: Record<
   { label: string; className: string; icon: React.ReactNode }
 > = {
   [ApplicationStatus.PENDING]: {
-    label: "대기 중",
+    label: "결과 대기",
     className: "bg-yellow-500 text-white",
     icon: <Clock className="size-3" />,
   },
@@ -90,7 +90,7 @@ export function ApplyStatusBadge({
     return (
       <Badge className={cn("border-transparent bg-yellow-500 text-white", className)}>
         <Clock className="size-3" />
-        신청 완료 - 대기 중
+        신청 완료
       </Badge>
     );
   }

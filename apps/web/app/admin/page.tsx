@@ -199,8 +199,8 @@ export default function AdminPage() {
       <div className="min-h-screen bg-background">
         <main className="container mx-auto px-4 py-10">
           <LoginRequiredState
-            title="관리자 로그인이 필요합니다"
-            description="관리자 계정으로 로그인한 뒤 관리자 기능을 사용할 수 있습니다."
+            title="운영자 로그인이 필요합니다"
+            description="운영 계정으로 로그인한 뒤 모임 운영 기능을 사용할 수 있습니다."
           />
         </main>
       </div>
@@ -217,7 +217,7 @@ export default function AdminPage() {
               <div className="space-y-1">
                 <h2 className="text-xl font-semibold">관리자 권한이 필요합니다</h2>
                 <p className="text-sm text-muted-foreground">
-                  현재 계정으로는 관리자 페이지에 접근할 수 없습니다.
+                  현재 계정으로는 운영 대시보드에 접근할 수 없습니다.
                 </p>
               </div>
               <Button asChild variant="outline">
@@ -243,7 +243,7 @@ export default function AdminPage() {
             </Link>
             <div className="flex items-center gap-2">
               <Shield className="size-5 text-blue-500" />
-              <h1 className="text-lg font-semibold">관리자 페이지</h1>
+              <h1 className="text-lg font-semibold">운영 대시보드</h1>
             </div>
           </div>
         </div>
@@ -427,7 +427,7 @@ export default function AdminPage() {
 
       <footer className="mt-auto border-t py-6">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          © 2026 상상단 단톡방 모임. All rights reserved.
+          © 2026 상상단. All rights reserved.
         </div>
       </footer>
 
