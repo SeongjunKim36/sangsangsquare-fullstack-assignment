@@ -69,5 +69,5 @@ pnpm --filter server build
 pnpm --filter server exec jest --config ./test/jest-e2e.json --watchman=false --runInBand
 ```
 
-- E2E는 제출용 DB가 아니라 `apps/server/data/assignment.e2e.sqlite`를 사용한다.
+- E2E는 제출용 DB가 아니라 프로세스별 `apps/server/data/assignment.e2e.<pid>.sqlite`를 사용한다.
 - 테스트 종료 후 E2E DB 파일과 WAL/SHM 파일을 정리한다.

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/tooltip";
 
 export function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
 
   // useEffect only runs on the client, so now we can safely show the UI
@@ -37,7 +37,7 @@ export function ThemeToggle() {
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           aria-label="테마 전환"
         >
-          {theme === "dark" ? (
+          {resolvedTheme === "dark" ? (
             <Sun className="h-5 w-5 transition-transform duration-200 hover:rotate-45" />
           ) : (
             <Moon className="h-5 w-5 transition-transform duration-200 hover:-rotate-12" />
@@ -45,7 +45,7 @@ export function ThemeToggle() {
         </Button>
       </TooltipTrigger>
       <TooltipContent>
-        <p>{theme === "dark" ? "라이트 모드" : "다크 모드"}</p>
+        <p>{resolvedTheme === "dark" ? "라이트 모드" : "다크 모드"}</p>
       </TooltipContent>
     </Tooltip>
   );

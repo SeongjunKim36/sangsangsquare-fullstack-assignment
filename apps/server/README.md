@@ -5,7 +5,7 @@ NestJS + TypeORM + SQLite 기반 API 서버입니다.
 ## DB
 
 - 기본 DB: `apps/server/data/assignment.sqlite`
-- E2E 전용 DB: `apps/server/data/assignment.e2e.sqlite`
+- E2E 전용 DB: `apps/server/data/assignment.e2e.<pid>.sqlite`
 - 테스트 실행 시 E2E DB만 사용하고, 실행 후 정리합니다.
 - 기본 DB 파일은 저장소의 고정 산출물이 아니라, `pnpm seed`로 로컬에서 다시 생성합니다.
 

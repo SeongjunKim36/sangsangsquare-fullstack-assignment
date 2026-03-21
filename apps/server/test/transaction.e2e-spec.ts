@@ -55,7 +55,7 @@ type SeededCookies = {
   user3: string[];
 };
 
-const TEST_DATABASE_PATH = join(process.cwd(), "data", "assignment.e2e.sqlite");
+const TEST_DATABASE_PATH = join(process.cwd(), "data", `assignment.e2e.${process.pid}.sqlite`);
 
 process.env["NODE_ENV"] = "test";
 process.env["DATABASE_PATH"] = TEST_DATABASE_PATH;
@@ -65,7 +65,7 @@ describe("Meeting Application Flow (e2e)", () => {
   let dataSource: DataSource;
   let httpServer: ReturnType<NestExpressApplication["getHttpServer"]>;
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     cleanupTestDatabaseFiles();
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -89,7 +89,7 @@ describe("Meeting Application Flow (e2e)", () => {
     dataSource = moduleFixture.get<DataSource>(DataSource);
   });
 
-  afterAll(async () => {
+  afterEach(async () => {
     if (app) {
       await app.close();
     }

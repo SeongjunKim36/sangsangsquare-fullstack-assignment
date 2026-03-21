@@ -8,11 +8,13 @@
 ### 환경
 
 - Node.js 22 이상
-- pnpm 9 이상
+- pnpm 10.26.1
 
 ### 실행
 
 ```bash
+corepack enable
+corepack prepare pnpm@10.26.1 --activate
 pnpm install
 pnpm --filter server seed
 pnpm dev
@@ -91,7 +93,7 @@ pnpm --filter server exec jest --config ./test/jest-e2e.json --watchman=false --
 초기에는 E2E가 제출용 SQLite를 건드릴 위험이 있었고, 날짜 고정값 때문에 시간이 지나면 깨질 여지가 있었습니다.  
 현재는 다음처럼 정리했습니다.
 
-- E2E는 `assignment.e2e.sqlite` 전용 파일 사용
+- E2E는 프로세스별 `assignment.e2e.<pid>.sqlite` 전용 파일 사용
 - 테스트 종료 후 E2E DB/WAL/SHM 파일 정리
 - 날짜는 상대 시간 기반으로 생성해 특정 날짜 이후에도 깨지지 않도록 수정
 
