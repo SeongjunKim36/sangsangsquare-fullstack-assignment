@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Header } from "@/components/header";
 import { MeetingTypeBadge } from "@/components/meeting-type-badge";
 import { ApplicationStatusBadge } from "@/components/application-status-badge";
+import { buildLoginHref } from "@/lib/auth-redirect";
 import { formatDateKorean, getRelativeTime } from "@/lib/date-utils";
 import { getErrorMessage } from "@/lib/error-handler";
 import { useApplyToMeeting, useMeetingDetail } from "@/lib/react-query/meetings";
@@ -44,14 +45,15 @@ export default function MeetingDetailPage({ params }: MeetingDetailPageProps) {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const currentUserQuery = useCurrentUser();
   const currentUser = currentUserQuery.data;
-  const currentUserId = currentUser?.id ?? null;
+  const isAuthChecking = currentUserQuery.isLoading;
+  const loginHref = buildLoginHref(`/meetings/${meetingId}`);
 
   const {
     data: meeting,
     isLoading,
     error,
     refetch,
-  } = useMeetingDetail(meetingId, currentUserId);
+  } = useMeetingDetail(meetingId);
   const applyMutation = useApplyToMeeting();
 
   const isInitialLoading = isLoading;
@@ -181,7 +183,7 @@ export default function MeetingDetailPage({ params }: MeetingDetailPageProps) {
         </Card>
 
         <div className="mb-6">
-          {!currentUser && meeting.canApply && (
+          {!isAuthChecking && !currentUser && meeting.canApply && (
             <Card className="mb-4 border-primary/20 bg-primary/5">
               <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -191,7 +193,7 @@ export default function MeetingDetailPage({ params }: MeetingDetailPageProps) {
                   </p>
                 </div>
                 <Button asChild>
-                  <Link href="/login">
+                  <Link href={loginHref}>
                     <LogIn className="size-4" />
                     로그인하고 신청하기
                   </Link>
@@ -200,7 +202,12 @@ export default function MeetingDetailPage({ params }: MeetingDetailPageProps) {
             </Card>
           )}
 
-          {canApplyNow ? (
+          {isAuthChecking && meeting.canApply ? (
+            <Button size="lg" className="w-full text-base" variant="secondary" disabled>
+              <Loader2 className="size-5 animate-spin" />
+              로그인 상태 확인 중...
+            </Button>
+          ) : canApplyNow ? (
             <Button
               size="lg"
               className="w-full text-base"
@@ -219,9 +226,9 @@ export default function MeetingDetailPage({ params }: MeetingDetailPageProps) {
               <Clock className="size-5" />
               신청 완료
             </Button>
-          ) : !currentUser && meeting.canApply ? (
+          ) : !isAuthChecking && !currentUser && meeting.canApply ? (
             <Button size="lg" className="w-full text-base" asChild>
-              <Link href="/login">
+              <Link href={loginHref}>
                 <LogIn className="size-5" />
                 로그인하고 신청하기
               </Link>

@@ -10,18 +10,17 @@ import { useAnnouncementInvalidation } from "../use-announcement-invalidation";
 
 export const meetingKeys = {
   all: ["meetings"] as const,
-  list: (userId: number | null) => [...meetingKeys.all, "list", userId] as const,
-  detail: (meetingId: number, userId: number | null) =>
-    [...meetingKeys.all, "detail", userId, meetingId] as const,
+  list: () => [...meetingKeys.all, "list"] as const,
+  detail: (meetingId: number) => [...meetingKeys.all, "detail", meetingId] as const,
   myApplications: (userId: number | null) => [...meetingKeys.all, "my-applications", userId] as const,
 };
 
 /**
  * 모임 목록 조회
  */
-export function useMeetings(userId: number | null) {
+export function useMeetings() {
   const query = useQuery({
-    queryKey: meetingKeys.list(userId),
+    queryKey: meetingKeys.list(),
     queryFn: () => meetingsApiClient.getMeetings(),
     staleTime: QUERY_STALE_TIME,
     refetchOnWindowFocus: true,
@@ -39,9 +38,9 @@ export function useMeetings(userId: number | null) {
 /**
  * 모임 상세 조회
  */
-export function useMeetingDetail(meetingId: number, userId: number | null) {
+export function useMeetingDetail(meetingId: number) {
   const query = useQuery({
-    queryKey: meetingKeys.detail(meetingId, userId),
+    queryKey: meetingKeys.detail(meetingId),
     queryFn: () => meetingsApiClient.getMeetingDetail(meetingId),
     enabled: Number.isFinite(meetingId) && meetingId > 0,
     staleTime: QUERY_STALE_TIME,

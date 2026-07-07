@@ -203,6 +203,7 @@ applications
 
 ## 관련 문서
 
+- [ASSIGNMENT 기반 설계 문서](./docs/assignment-driven-design.md)
 - [현재 아키텍처 요약](./docs/current-architecture.md)
 - [제출 전 필수 개선 계획](./docs/submission-hardening-plan.md)
 - [로그인 기반 사용자 통합 계획](./docs/login-based-user-unification-plan.md)

@@ -15,11 +15,14 @@ import { getErrorMessage } from "@/lib/error-handler";
 import { adminKeys } from "@/lib/react-query/admin";
 import { authKeys, useCurrentUser } from "@/lib/react-query/auth";
 import { meetingKeys } from "@/lib/react-query/meetings";
+import { resolvePostLoginPath } from "@/lib/auth-redirect";
 
 export default function LoginPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const currentUserQuery = useCurrentUser();
+  const [nextPath, setNextPath] = useState<string | null>(null);
+  const [isLocationReady, setIsLocationReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     userId: "",
@@ -27,12 +30,17 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    if (!currentUserQuery.data) {
+    setNextPath(new URLSearchParams(window.location.search).get("next"));
+    setIsLocationReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isLocationReady || !currentUserQuery.data) {
       return;
     }
 
-    router.replace(currentUserQuery.data.role === "ADMIN" ? "/admin" : "/");
-  }, [currentUserQuery.data, router]);
+    router.replace(resolvePostLoginPath(currentUserQuery.data.role, nextPath));
+  }, [currentUserQuery.data, isLocationReady, nextPath, router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,11 +69,7 @@ export default function LoginPage() {
       queryClient.setQueryData(authKeys.me(), response.user);
       toast.success(response.message);
 
-      if (response.user.role === "ADMIN") {
-        router.push("/admin");
-      } else {
-        router.push("/");
-      }
+      router.push(resolvePostLoginPath(response.user.role, nextPath));
     } catch (error: unknown) {
       const message = getErrorMessage(error, "로그인에 실패했습니다.");
       toast.error(message);

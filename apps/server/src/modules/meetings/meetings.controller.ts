@@ -4,18 +4,14 @@ import { MeetingsService } from "./meetings.service";
 import { AuthGuard } from "../auth/auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import { User } from "../../entity";
-import { UserService } from "../user/user.service";
 
 @Controller("meetings")
 export class MeetingsController {
-  constructor(
-    private readonly meetingsService: MeetingsService,
-    private readonly userService: UserService
-  ) {}
+  constructor(private readonly meetingsService: MeetingsService) {}
 
   @Get()
   async getMeetings(@Session() session: AppSession) {
-    const userId = await this.getOptionalUserId(session);
+    const userId = this.getOptionalUserId(session);
     return this.meetingsService.findAll(userId);
   }
 
@@ -24,7 +20,7 @@ export class MeetingsController {
     @Param("meetingId", ParseIntPipe) meetingId: number,
     @Session() session: AppSession
   ) {
-    const userId = await this.getOptionalUserId(session);
+    const userId = this.getOptionalUserId(session);
     return this.meetingsService.findOne(meetingId, userId);
   }
 
@@ -37,13 +33,8 @@ export class MeetingsController {
     return this.meetingsService.applyToMeeting(meetingId, user.id, user.name);
   }
 
-  private async getOptionalUserId(session: AppSession): Promise<number | null> {
-    if (!session.userId) {
-      return null;
-    }
-
-    const user = await this.userService.findById(session.userId);
-    return user?.id ?? null;
+  private getOptionalUserId(session: AppSession): number | null {
+    return session.userId ?? null;
   }
 }
 

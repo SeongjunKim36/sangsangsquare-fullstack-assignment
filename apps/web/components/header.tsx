@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { User, ClipboardList, Settings, LogIn, LogOut, Shield } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useCurrentUser, useLogout } from "@/lib/react-query/auth";
+import { buildLoginHref } from "@/lib/auth-redirect";
 
 export function Header() {
+  const pathname = usePathname();
   const router = useRouter();
   const currentUserQuery = useCurrentUser();
   const logoutMutation = useLogout();
@@ -90,7 +92,7 @@ export function Header() {
               ) : (
                 <Button variant="outline" size="sm" asChild>
                   <Link
-                    href="/login"
+                    href={buildLoginHref(pathname)}
                     className="flex items-center gap-1"
                     aria-label="로그인 페이지로 이동"
                   >

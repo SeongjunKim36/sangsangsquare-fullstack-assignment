@@ -6,20 +6,16 @@ import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useMeetings } from "@/lib/react-query/meetings";
-import { useCurrentUser } from "@/lib/react-query/auth";
 import { getErrorMessage } from "@/lib/error-handler";
 import { AlertCircle, RefreshCw, CalendarOff } from "lucide-react";
 
 export function MeetingList() {
-  const currentUserQuery = useCurrentUser();
-  const currentUser = currentUserQuery.data;
-  const currentUserId = currentUser?.id ?? null;
   const {
     data: meetings = [],
     isLoading,
     error,
     refetch,
-  } = useMeetings(currentUserId);
+  } = useMeetings();
 
   if (isLoading) {
     return <MeetingCardSkeletonGrid />;

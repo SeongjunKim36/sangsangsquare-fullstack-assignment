@@ -2,15 +2,18 @@ import Link from "next/link";
 import { Lock, LogIn } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { buildLoginHref } from "@/lib/auth-redirect";
 
 type LoginRequiredStateProps = {
   title?: string;
   description?: string;
+  nextPath?: string;
 };
 
 export function LoginRequiredState({
   title = "로그인이 필요합니다",
   description = "로그인 후 신청 결과와 참여 상태를 확인할 수 있어요.",
+  nextPath = "/my",
 }: LoginRequiredStateProps) {
   return (
     <Card>
@@ -21,7 +24,7 @@ export function LoginRequiredState({
           <p className="text-sm text-muted-foreground">{description}</p>
         </div>
         <Button asChild>
-          <Link href="/login">
+          <Link href={buildLoginHref(nextPath)}>
             <LogIn className="size-4" />
             로그인하고 시작하기
           </Link>
